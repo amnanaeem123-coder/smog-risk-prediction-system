@@ -1,30 +1,30 @@
 [
   {
-    "city": "Faisalabad",
-    "datetime": "2025-02-28 23:00:00",
-    "visibility_km": 17.61,
+    "city": "Lahore",
+    "datetime": "2026-10-06 14:00:00",
+    "visibility_km": 9.47,
+    "risk_level": "LOW",
+    "recommendation": "Reduced Speed Advised — Monitor Conditions"
+  },
+  {
+    "city": "Islamabad",
+    "datetime": "2026-10-06 14:00:00",
+    "visibility_km": 17.47,
     "risk_level": "SAFE",
     "recommendation": "Normal Operations"
   },
   {
-    "city": "Islamabad",
-    "datetime": "2025-02-28 23:00:00",
-    "visibility_km": 15.62,
+    "city": "Faisalabad",
+    "datetime": "2026-10-06 14:00:00",
+    "visibility_km": 19.22,
     "risk_level": "SAFE",
     "recommendation": "Normal Operations"
   },
- {
-  "city": "Lahore",
-  "datetime": "2025-02-28 23:00:00",
-  "visibility_km": 3.71,
-  "risk_level": "MODERATE",
-  "recommendation": "Motorway is not recommended at this time. Please plan your own alternate route if travel is necessary."
-},
-{
-  "city": "Multan",
-  "datetime": "2025-02-28 23:00:00",
-  "visibility_km": 3.77,
-  "risk_level": "MODERATE",
-  "recommendation": "Motorway is not recommended at this time. Please plan your own alternate route if travel is necessary."
-}
+  {
+    "city": "Multan",
+    "datetime": "2026-10-06 14:00:00",
+    "visibility_km": 9.06,
+    "risk_level": "LOW",
+    "recommendation": "Reduced Speed Advised — Monitor Conditions"
+  }
 ]

@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import 'login_page.dart';
 import 'motorway_network_screen.dart';
@@ -61,6 +62,15 @@ class _UserDashboardState extends State<UserDashboard>
 
   bool _refreshing = false;
 
+  // LIVE DATA: address of the small Python (Flask) server.
+  static const String _liveUrl = 'http://localhost:5000/latest';
+
+  // LIVE DATA: shows where the current data came from.
+  String _dataSource = 'Offline file';
+
+  // LIVE DATA: asks the server for new data every 5 minutes.
+  Timer? _autoRefreshTimer;
+
   @override
   void initState() {
     super.initState();
@@ -94,11 +104,16 @@ class _UserDashboardState extends State<UserDashboard>
     });
 
     _loadData();
+
+    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (mounted) _loadData();
+    });
   }
 
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _autoRefreshTimer?.cancel();
     _backgroundController.dispose();
     _entryController.dispose();
     _pulseController.dispose();
@@ -106,34 +121,60 @@ class _UserDashboardState extends State<UserDashboard>
     super.dispose();
   }
 
+  // LIVE DATA: try the Python server first.
+  // If the server is not running, use the bundled JSON file instead,
+  // so the app never shows an empty screen during a demo.
   Future<void> _loadData() async {
+    final firstLoad = _locations.isEmpty;
+
+    List<dynamic> list = [];
+    String source = 'Offline file';
+
     try {
-      final raw = await rootBundle.loadString('assets/data/latest_risk.json');
-      final decoded = jsonDecode(raw);
+      final response = await http
+          .get(Uri.parse(_liveUrl))
+          .timeout(const Duration(seconds: 4));
 
-      final List<dynamic> list = decoded is List ? decoded : [];
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List && decoded.isNotEmpty) {
+          list = decoded;
+          source = 'Live server';
+        }
+      }
+    } catch (_) {
+      // Server not reachable. Fall back to the bundled file below.
+    }
 
-      final data = list
-          .map<Map<String, dynamic>>(
-            (e) => Map<String, dynamic>.from(e as Map),
-          )
-          .toList();
+    if (list.isEmpty) {
+      try {
+        final raw =
+            await rootBundle.loadString('assets/data/latest_risk.json');
+        final decoded = jsonDecode(raw);
+        list = decoded is List ? decoded : [];
+      } catch (_) {
+        list = [];
+      }
+    }
 
-      if (!mounted) return;
+    final data = list
+        .map<Map<String, dynamic>>(
+          (e) => Map<String, dynamic>.from(e as Map),
+        )
+        .toList();
 
-      setState(() {
-        _locations = data;
-        _loading = false;
-      });
+    if (!mounted) return;
 
+    setState(() {
+      _locations = data;
+      _dataSource = source;
+      _loading = false;
+    });
+
+    // Play the entry animation only on the first load,
+    // not on every auto refresh.
+    if (firstLoad) {
       _entryController.forward(from: 0);
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _locations = [];
-        _loading = false;
-      });
     }
   }
 
@@ -173,6 +214,8 @@ class _UserDashboardState extends State<UserDashboard>
   String get _email =>
       _auth.currentUser?.email ?? 'motorway.user@smogsystem.pk';
 
+  // CHANGE 1: sort by risk first, then by lowest visibility,
+  // so ties go to the location with the worst visibility.
   Map<String, dynamic>? get _highestRiskLocation {
     if (_locations.isEmpty) return null;
 
@@ -193,15 +236,48 @@ class _UserDashboardState extends State<UserDashboard>
 
     final copy = List<Map<String, dynamic>>.from(_locations);
 
-    copy.sort(
-      (a, b) => score(
+    copy.sort((a, b) {
+      final byRisk = score(
         b['risk_level'].toString(),
       ).compareTo(
         score(a['risk_level'].toString()),
-      ),
-    );
+      );
+
+      if (byRisk != 0) return byRisk;
+
+      final visA =
+          double.tryParse(a['visibility_km'].toString()) ?? double.infinity;
+      final visB =
+          double.tryParse(b['visibility_km'].toString()) ?? double.infinity;
+
+      return visA.compareTo(visB);
+    });
 
     return copy.first;
+  }
+
+  // CHANGE 1: true when every location is SAFE
+  bool get _allClear {
+    if (_locations.isEmpty) return false;
+
+    return _locations.every(
+      (e) => e['risk_level'].toString().toUpperCase() == 'SAFE',
+    );
+  }
+
+  // CHANGE 3: newest data timestamp from the JSON file
+  String get _lastDataTime {
+    if (_locations.isEmpty) return 'No data loaded';
+
+    final times = _locations
+        .map((e) => e['datetime']?.toString() ?? '')
+        .where((t) => t.isNotEmpty && t != 'null')
+        .toList();
+
+    if (times.isEmpty) return 'Unknown';
+
+    times.sort();
+    return times.last;
   }
 
   int _countRisk(String risk) {
@@ -383,9 +459,7 @@ class _UserDashboardState extends State<UserDashboard>
     );
   }
 
-      
-
-               Widget _buildSidebar() {
+  Widget _buildSidebar() {
     return Container(
       width: 218,
       decoration: BoxDecoration(
@@ -398,7 +472,7 @@ class _UserDashboardState extends State<UserDashboard>
       ),
       child: SafeArea(
         child: Padding(
-         padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -477,27 +551,23 @@ class _UserDashboardState extends State<UserDashboard>
               ),
 
               // RISK ALERTS
-            _sidebarItem(
-  icon: Icons.warning_amber_rounded,
-  title: 'Risk Alerts',
-  badge: (_countRisk('MODERATE') +
-          _countRisk('HIGH') +
-          _countRisk('CRITICAL'))
-      .toString(),
-  onTap: () {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const RiskAlertsScreen(),
-      ),
-    );
-  },
-),
+              _sidebarItem(
+                icon: Icons.warning_amber_rounded,
+                title: 'Risk Alerts',
+                badge: (_countRisk('MODERATE') +
+                        _countRisk('HIGH') +
+                        _countRisk('CRITICAL'))
+                    .toString(),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const RiskAlertsScreen(),
+                    ),
+                  );
+                },
+              ),
 
-              
-             
-              
-
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
               // ==================================================
               // SYSTEM
@@ -505,29 +575,29 @@ class _UserDashboardState extends State<UserDashboard>
 
               _sidebarSection('SYSTEM'),
 
-             _sidebarItem(
-  icon: Icons.info_outline_rounded,
-  title: 'System Status',
-  onTap: () {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const SystemStatusScreen(),
-      ),
-    );
-  },
-),
-_sidebarItem(
-  icon: Icons.settings_outlined,
-  title: 'Preferences',
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PreferencesScreen(),
-      ),
-    );
-  },
-),
+              _sidebarItem(
+                icon: Icons.info_outline_rounded,
+                title: 'System Status',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const SystemStatusScreen(),
+                    ),
+                  );
+                },
+              ),
+              _sidebarItem(
+                icon: Icons.settings_outlined,
+                title: 'Preferences',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PreferencesScreen(),
+                    ),
+                  );
+                },
+              ),
 
               const Spacer(),
 
@@ -595,12 +665,34 @@ _sidebarItem(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 6),
+                    // CHANGE 3: show when the data was last updated
                     const Text(
-                      'Monitoring motorway conditions',
+                      'Last prediction data',
                       style: TextStyle(
                         color: muted2,
                         fontSize: 10,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _lastDataTime,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: muted,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // LIVE DATA: where the data came from
+                    Text(
+                      'Source: $_dataSource',
+                      style: TextStyle(
+                        color: _dataSource == 'Live server' ? safe : moderate,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -613,7 +705,7 @@ _sidebarItem(
               // SIGN OUT
               // ==================================================
 
-                           InkWell(
+              InkWell(
                 onTap: _logout,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
@@ -666,69 +758,70 @@ _sidebarItem(
     );
   }
 
-Widget _sidebarItem({
-  required IconData icon,
-  required String title,
-  VoidCallback? onTap,
-  bool selected = false,
-  String? badge,
-}) {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 5),
-    decoration: BoxDecoration(
-      color: selected ? cyan.withAlpha(18) : Colors.transparent,
-      borderRadius: BorderRadius.circular(11),
-      border: Border.all(
-        color: selected ? cyan.withAlpha(55) : Colors.transparent,
-      ),
-    ),
-    child: ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 10,
-      ),
-      onTap: onTap,
-
-      leading: Icon(
-        icon,
-        size: 18,
-        color: selected ? cyan : muted,
-      ),
-
-      title: Text(
-        title,
-        style: TextStyle(
-          color: selected ? white : muted,
-          fontSize: 11.5,
-          fontWeight: selected
-              ? FontWeight.w800
-              : FontWeight.w600,
+  Widget _sidebarItem({
+    required IconData icon,
+    required String title,
+    VoidCallback? onTap,
+    bool selected = false,
+    String? badge,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 5),
+      decoration: BoxDecoration(
+        color: selected ? cyan.withAlpha(18) : Colors.transparent,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(
+          color: selected ? cyan.withAlpha(55) : Colors.transparent,
         ),
       ),
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+        ),
+        onTap: onTap,
 
-      trailing: badge == null
-          ? null
-          : Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 6,
-                vertical: 3,
-              ),
-              decoration: BoxDecoration(
-                color: moderate.withAlpha(22),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Text(
-                badge,
-                style: const TextStyle(
-                  color: moderate,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
+        leading: Icon(
+          icon,
+          size: 18,
+          color: selected ? cyan : muted,
+        ),
+
+        title: Text(
+          title,
+          style: TextStyle(
+            color: selected ? white : muted,
+            fontSize: 11.5,
+            fontWeight: selected
+                ? FontWeight.w800
+                : FontWeight.w600,
+          ),
+        ),
+
+        trailing: badge == null
+            ? null
+            : Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: moderate.withAlpha(22),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  badge,
+                  style: const TextStyle(
+                    color: moderate,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-            ),
-    ),
-  );
-}
+      ),
+    );
+  }
+
   Widget _buildMobileHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
@@ -847,8 +940,24 @@ Widget _sidebarItem({
           ),
         ),
 
-        if (MediaQuery.of(context).size.width > 900)
+        if (MediaQuery.of(context).size.width > 900) ...[
+          // LIVE DATA: manual refresh button for desktop
+          Tooltip(
+            message: 'Refresh data',
+            child: IconButton(
+              onPressed: _refreshData,
+              icon: RotationTransition(
+                turns: _refreshController,
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  color: cyan,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           _buildUserChip(),
+        ],
       ],
     );
   }
@@ -872,9 +981,9 @@ Widget _sidebarItem({
           Container(
             width: 31,
             height: 31,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [
                   cyan,
                   teal,
@@ -1001,8 +1110,6 @@ Widget _sidebarItem({
     final city = highest?['city']?.toString() ?? 'Unknown';
     final visibility =
         double.tryParse(highest?['visibility_km']?.toString() ?? '') ?? 0;
-    final recommendation =
-        highest?['recommendation']?.toString() ?? 'Normal Operations';
 
     final riskColor = _riskColor(risk);
 
@@ -1179,8 +1286,11 @@ Widget _sidebarItem({
                     size: 14,
                   ),
                   const SizedBox(width: 6),
+                  // CHANGE 1: different label when everything is safe
                   Text(
-                    'CURRENT HIGHEST RISK',
+                    _allClear
+                        ? 'ALL CLEAR  •  LOWEST VISIBILITY'
+                        : 'CURRENT HIGHEST RISK',
                     style: TextStyle(
                       color: riskColor,
                       fontSize: 9,
@@ -1353,7 +1463,7 @@ Widget _sidebarItem({
       ),
       _StatData(
         title: 'AVG VISIBILITY',
-        value: '${_averageVisibility.toStringAsFixed(1)}',
+        value: _averageVisibility.toStringAsFixed(1),
         subtitle: 'kilometres',
         icon: Icons.visibility_rounded,
         accent: cyan2,
@@ -1363,7 +1473,7 @@ Widget _sidebarItem({
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth < 700 ? 2 : 4;
-        final spacing = 10.0;
+        const spacing = 10.0;
         final itemWidth =
             (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
 
@@ -1420,13 +1530,14 @@ Widget _sidebarItem({
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // CHANGE 4: slightly larger, more readable
                 Text(
                   stat.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: muted2,
-                    fontSize: 8,
+                    color: muted,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: .8,
                   ),
@@ -1446,7 +1557,7 @@ Widget _sidebarItem({
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: muted,
-                    fontSize: 9,
+                    fontSize: 10.5,
                   ),
                 ),
               ],
@@ -1488,18 +1599,24 @@ Widget _sidebarItem({
     );
   }
 
+  // CHANGE 2: bar chart with y-axis and value labels
   Widget _buildVisibilityPanel() {
     final values = _locations
         .map(
-          (e) =>
-              double.tryParse(e['visibility_km'].toString()) ?? 0,
+          (e) => double.tryParse(e['visibility_km'].toString()) ?? 0,
+        )
+        .toList();
+
+    final barColors = _locations
+        .map(
+          (e) => _riskColor(e['risk_level'].toString()),
         )
         .toList();
 
     return _panelContainer(
       title: 'VISIBILITY ANALYSIS',
-      subtitle: 'Current visibility across monitored locations',
-      icon: Icons.show_chart_rounded,
+      subtitle: 'Current visibility (km) across monitored locations',
+      icon: Icons.bar_chart_rounded,
       accent: cyan,
       child: Column(
         children: [
@@ -1509,33 +1626,40 @@ Widget _sidebarItem({
             child: CustomPaint(
               painter: _VisibilityChartPainter(
                 values: values,
-                lineColor: cyan,
+                barColors: barColors,
                 gridColor: border,
+                labelColor: muted,
+                valueColor: white,
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: _locations.map((location) {
-              final city = location['city'].toString();
+          Padding(
+            padding: const EdgeInsets.only(
+              left: _VisibilityChartPainter.leftPad,
+            ),
+            child: Row(
+              children: _locations.map((location) {
+                final city = location['city'].toString();
 
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 3,
-                  ),
-                  child: Text(
-                    city,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: muted2,
-                      fontSize: 8,
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 3,
+                    ),
+                    child: Text(
+                      city,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: muted,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
@@ -1590,8 +1714,8 @@ Widget _sidebarItem({
                         const Text(
                           'LOCATIONS',
                           style: TextStyle(
-                            color: muted2,
-                            fontSize: 8,
+                            color: muted,
+                            fontSize: 9,
                             fontWeight: FontWeight.w800,
                             letterSpacing: .8,
                           ),
@@ -1605,7 +1729,7 @@ Widget _sidebarItem({
           ),
           Wrap(
             alignment: WrapAlignment.center,
-            spacing: 10,
+            spacing: 12,
             runSpacing: 7,
             children: counts.entries.map(
               (entry) {
@@ -1615,19 +1739,20 @@ Widget _sidebarItem({
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 7,
-                      height: 7,
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
                         color: color,
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
+                    // CHANGE 4: larger legend text
                     Text(
                       '${entry.key} ${entry.value}',
                       style: const TextStyle(
                         color: muted,
-                        fontSize: 8,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1643,17 +1768,17 @@ Widget _sidebarItem({
 
   Widget _buildNetworkPanel() {
     final routes = [
-      _RouteInfo(
+      const _RouteInfo(
         route: 'M-2',
         name: 'Lahore — Islamabad',
         cities: ['Lahore', 'Islamabad'],
       ),
-      _RouteInfo(
+      const _RouteInfo(
         route: 'M-3',
         name: 'Lahore — Faisalabad',
         cities: ['Lahore', 'Faisalabad'],
       ),
-      _RouteInfo(
+      const _RouteInfo(
         route: 'M-4',
         name: 'Faisalabad — Multan',
         cities: ['Faisalabad', 'Multan'],
@@ -1732,10 +1857,8 @@ Widget _sidebarItem({
     final first = _locationForCity(route.cities.first);
     final second = _locationForCity(route.cities.last);
 
-    final firstRisk =
-        first?['risk_level']?.toString() ?? 'SAFE';
-    final secondRisk =
-        second?['risk_level']?.toString() ?? 'SAFE';
+    final firstRisk = first?['risk_level']?.toString() ?? 'SAFE';
+    final secondRisk = second?['risk_level']?.toString() ?? 'SAFE';
 
     final routeRisk = _routeRisk(firstRisk, secondRisk);
     final routeColor = _riskColor(routeRisk);
@@ -2001,8 +2124,7 @@ Widget _sidebarItem({
           (item) {
             final city = item['city'].toString();
             final risk = item['risk_level'].toString();
-            final recommendation =
-                item['recommendation'].toString();
+            final recommendation = item['recommendation'].toString();
 
             final color = _riskColor(risk);
 
@@ -2092,15 +2214,23 @@ Widget _sidebarItem({
       subtitle: 'Location-level motorway condition monitoring',
       icon: Icons.location_searching_rounded,
       accent: cyan,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildFilterButton('ALL'),
-          const SizedBox(width: 5),
-          _buildFilterButton('SAFE'),
-          const SizedBox(width: 5),
-          _buildFilterButton('MODERATE'),
-        ],
+      // All risk levels now have a filter button.
+      // Wrap lets the buttons move to a second line on small screens.
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            _buildFilterButton('ALL'),
+            _buildFilterButton('SAFE'),
+            _buildFilterButton('LOW'),
+            _buildFilterButton('MODERATE'),
+            _buildFilterButton('HIGH'),
+            _buildFilterButton('CRITICAL'),
+          ],
+        ),
       ),
       child: Column(
         children: [
@@ -2147,7 +2277,7 @@ Widget _sidebarItem({
                 return const Padding(
                   padding: EdgeInsets.all(25),
                   child: Text(
-                    'No location matches your search.',
+                    'No location matches this filter or search.',
                     style: TextStyle(
                       color: muted,
                       fontSize: 11,
@@ -2157,7 +2287,7 @@ Widget _sidebarItem({
               }
 
               final columns = constraints.maxWidth < 700 ? 1 : 2;
-              final spacing = 10.0;
+              const spacing = 10.0;
               final itemWidth = columns == 1
                   ? constraints.maxWidth
                   : (constraints.maxWidth - spacing) / 2;
@@ -2197,10 +2327,10 @@ Widget _sidebarItem({
 
     return InkWell(
       onTap: () {
-  setState(() {
-    _filter = value;
-  });
-},
+        setState(() {
+          _filter = value;
+        });
+      },
       borderRadius: BorderRadius.circular(7),
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -2286,11 +2416,12 @@ Widget _sidebarItem({
                       ),
                     ),
                     const SizedBox(height: 2),
+                    // CHANGE 4: larger, more readable subtitle
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        color: muted2,
-                        fontSize: 8.5,
+                        color: muted,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -2567,8 +2698,7 @@ class _LocationCardState extends State<_LocationCard> {
     final city = widget.item['city'].toString();
     final risk = widget.item['risk_level'].toString();
 
-    final visibility =
-        double.tryParse(
+    final visibility = double.tryParse(
           widget.item['visibility_km'].toString(),
         ) ??
         0;
@@ -2944,8 +3074,7 @@ class _AtmospherePainter extends CustomPainter {
       ..color = const Color(0xFF20D9FF).withAlpha(7);
 
     for (int i = 0; i < 8; i++) {
-      final y =
-          size.height * (i / 8) +
+      final y = size.height * (i / 8) +
           math.sin(progress * math.pi * 2 + i) * 9;
 
       canvas.drawLine(
@@ -3018,8 +3147,7 @@ class _RiskGaugePainter extends CustomPainter {
       progressPaint,
     );
 
-    final dotAngle =
-        math.pi * .75 + (math.pi * 1.5 * progress);
+    final dotAngle = math.pi * .75 + (math.pi * 1.5 * progress);
 
     final dot = Offset(
       center.dx + radius * math.cos(dotAngle),
@@ -3058,163 +3186,133 @@ class _RiskGaugePainter extends CustomPainter {
 }
 
 // ============================================================
-// VISIBILITY CHART
+// VISIBILITY CHART (CHANGE 2: bars + y-axis + value labels)
 // ============================================================
 
 class _VisibilityChartPainter extends CustomPainter {
   final List<double> values;
-  final Color lineColor;
+  final List<Color> barColors;
   final Color gridColor;
+  final Color labelColor;
+  final Color valueColor;
+
+  // Space on the left for y-axis numbers.
+  // The city label row uses the same padding so it lines up.
+  static const double leftPad = 28;
 
   _VisibilityChartPainter({
     required this.values,
-    required this.lineColor,
+    required this.barColors,
     required this.gridColor,
+    required this.labelColor,
+    required this.valueColor,
   });
+
+  void _drawText(
+    Canvas canvas,
+    String text,
+    TextStyle style,
+    Offset Function(Size textSize) position,
+  ) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    tp.paint(canvas, position(tp.size));
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty) return;
 
+    const topPad = 18.0;
+    final chartHeight = size.height - topPad;
+    final chartWidth = size.width - leftPad;
+    final baseY = topPad + chartHeight;
+
+    final maxValue = math.max(
+      20.0,
+      values.reduce((a, b) => math.max(a, b)),
+    );
+    final axisMax = (maxValue / 5).ceil() * 5.0;
+
+    // Grid lines and y-axis labels
     final gridPaint = Paint()
       ..color = gridColor.withAlpha(80)
       ..strokeWidth = 1;
 
-    for (int i = 1; i < 5; i++) {
-      final y = size.height * i / 5;
+    final axisStyle = TextStyle(
+      color: labelColor,
+      fontSize: 9,
+    );
+
+    const steps = 5;
+    for (int i = 0; i <= steps; i++) {
+      final value = axisMax * i / steps;
+      final y = baseY - (chartHeight * i / steps);
 
       canvas.drawLine(
-        Offset(0, y),
+        Offset(leftPad, y),
         Offset(size.width, y),
         gridPaint,
       );
-    }
 
-    final maxValue = math.max(
-  20.0,
-  values.reduce((a, b) => math.max(a, b)),
-);
-    final points = <Offset>[];
-
-    for (int i = 0; i < values.length; i++) {
-      final x = values.length == 1
-          ? size.width / 2
-          : size.width * i / (values.length - 1);
-
-      final y =
-          size.height -
-          ((values[i] / maxValue) * (size.height - 18));
-
-      points.add(
-        Offset(
-          x,
-          y.clamp(8, size.height - 4),
-        ),
+      _drawText(
+        canvas,
+        value.toStringAsFixed(0),
+        axisStyle,
+        (s) => Offset(leftPad - 6 - s.width, y - s.height / 2),
       );
     }
 
-    if (points.length > 1) {
-      final areaPath = Path()
-        ..moveTo(
-          points.first.dx,
-          size.height,
-        )
-        ..lineTo(
-          points.first.dx,
-          points.first.dy,
-        );
+    // Bars
+    final slot = chartWidth / values.length;
+    final barWidth = math.min(slot * .45, 46.0);
 
-      for (int i = 1; i < points.length; i++) {
-        areaPath.lineTo(
-          points[i].dx,
-          points[i].dy,
-        );
-      }
+    final valueStyle = TextStyle(
+      color: valueColor,
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+    );
 
-      areaPath
-        ..lineTo(
-          points.last.dx,
-          size.height,
-        )
-        ..close();
+    for (int i = 0; i < values.length; i++) {
+      final v = values[i];
+      final centerX = leftPad + slot * i + slot / 2;
+      final barHeight = chartHeight * (v / axisMax).clamp(0.0, 1.0);
+      final top = baseY - barHeight;
 
-      final areaPaint = Paint()
+      final color =
+          i < barColors.length ? barColors[i] : const Color(0xFF20D9FF);
+
+      final rect = RRect.fromRectAndCorners(
+        Rect.fromLTRB(
+          centerX - barWidth / 2,
+          top,
+          centerX + barWidth / 2,
+          baseY,
+        ),
+        topLeft: const Radius.circular(6),
+        topRight: const Radius.circular(6),
+      );
+
+      final barPaint = Paint()
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            lineColor.withAlpha(35),
-            lineColor.withAlpha(0),
+            color.withAlpha(230),
+            color.withAlpha(90),
           ],
-        ).createShader(
-          Rect.fromLTWH(
-            0,
-            0,
-            size.width,
-            size.height,
-          ),
-        );
+        ).createShader(rect.outerRect);
 
-      canvas.drawPath(
-        areaPath,
-        areaPaint,
-      );
-    }
+      canvas.drawRRect(rect, barPaint);
 
-    final linePaint = Paint()
-      ..color = lineColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final path = Path();
-
-    if (points.isNotEmpty) {
-      path.moveTo(
-        points.first.dx,
-        points.first.dy,
-      );
-
-      for (int i = 1; i < points.length; i++) {
-        final previous = points[i - 1];
-        final current = points[i];
-
-        final controlPoint1 = Offset(
-          previous.dx + (current.dx - previous.dx) / 2,
-          previous.dy,
-        );
-
-        final controlPoint2 = Offset(
-          previous.dx + (current.dx - previous.dx) / 2,
-          current.dy,
-        );
-
-        path.cubicTo(
-          controlPoint1.dx,
-          controlPoint1.dy,
-          controlPoint2.dx,
-          controlPoint2.dy,
-          current.dx,
-          current.dy,
-        );
-      }
-
-      canvas.drawPath(
-        path,
-        linePaint,
-      );
-    }
-
-    final dotPaint = Paint()
-      ..color = lineColor
-      ..style = PaintingStyle.fill;
-
-    for (final point in points) {
-      canvas.drawCircle(
-        point,
-        4,
-        dotPaint,
+      _drawText(
+        canvas,
+        '${v.toStringAsFixed(1)} km',
+        valueStyle,
+        (s) => Offset(centerX - s.width / 2, top - s.height - 3),
       );
     }
   }
@@ -3259,8 +3357,7 @@ class _DonutPainter extends CustomPainter {
     for (int i = 0; i < values.length; i++) {
       if (values[i] == 0) continue;
 
-      final sweep =
-          (values[i] / total) * math.pi * 2;
+      final sweep = (values[i] / total) * math.pi * 2;
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
