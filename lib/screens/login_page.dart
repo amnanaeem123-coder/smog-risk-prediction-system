@@ -2,7 +2,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import 'admin_dashboard.dart';
 import 'forgot_password_page.dart';
 import 'nhmp_dashboard.dart';
@@ -422,6 +421,115 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
   }
+  
+  // GOOGLE SIGN-IN FOR CHROME
+
+  Future<void> handleGoogleSignIn() async {
+    if (isLoading) return;
+
+    setState(() {
+      isLoading = true;
+      activeError = null;
+      errorField = null;
+    });
+
+    try {
+      final GoogleAuthProvider provider = GoogleAuthProvider();
+
+      final UserCredential credential =
+          await FirebaseAuth.instance.signInWithPopup(provider);
+
+      final User? user = credential.user;
+
+      if (user == null) {
+        showMessage('Google login failed. Please try again.');
+        return;
+      }
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      String role = 'user';
+
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final storedRole = data?['role'];
+
+        if (storedRole is String &&
+            storedRole.trim().isNotEmpty) {
+          role = storedRole.trim().toLowerCase();
+        }
+      }
+
+      if (!mounted) return;
+
+      if (selectedRole == 'Admin Login') {
+        if (role != 'admin') {
+          await FirebaseAuth.instance.signOut();
+          if (mounted) {
+            showMessage('This account is not registered as Admin.');
+          }
+          return;
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AdminDashboard(),
+          ),
+        );
+      } else if (selectedRole == 'NHMP Login') {
+        if (role != 'nhmp') {
+          await FirebaseAuth.instance.signOut();
+          if (mounted) {
+            showMessage('This account is not registered as NHMP.');
+          }
+          return;
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const NHMPDashboard(),
+          ),
+        );
+      } else {
+        if (role != 'user') {
+          await FirebaseAuth.instance.signOut();
+          if (mounted) {
+            showMessage('Please select the correct login role.');
+          }
+          return;
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const UserDashboard(),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        showMessage(
+          e.message ?? 'Google login failed. Please try again.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showMessage('Google login failed. Please try again.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
 
   // ============================================================
   // ROLE BUTTON
@@ -929,6 +1037,66 @@ class _LoginPageState extends State<LoginPage> {
           ),
 
           const SizedBox(height: 20),
+
+          // GOOGLE SIGN-IN BUTTON
+
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              Expanded(
+                child: Divider(
+                  color: Colors.white.withAlpha(45),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'OR',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Divider(
+                  color: Colors.white.withAlpha(45),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          SizedBox(
+            height: 50,
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: isLoading ? null : handleGoogleSignIn,
+              icon: const Icon(
+                Icons.g_mobiledata_rounded,
+                size: 30,
+                color: Colors.white,
+              ),
+              label: const Text(
+                'Continue with Google',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: Colors.white.withAlpha(70),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(13),
+                ),
+              ),
+            ),
+          ),
 
           // ======================================================
           // CREATE ACCOUNT
