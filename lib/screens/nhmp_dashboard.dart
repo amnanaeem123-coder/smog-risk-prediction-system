@@ -2,13 +2,21 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'login_page.dart';
 
+import 'user_dashboard.dart';
 class NHMPDashboard extends StatefulWidget {
-  const NHMPDashboard({super.key});
+  final bool isOpenedFromAdmin;
+
+  const NHMPDashboard({
+    super.key,
+    this.isOpenedFromAdmin = false,
+  });
 
   @override
   State<NHMPDashboard> createState() => _NHMPDashboardState();
 }
+
 
 class _NHMPDashboardState extends State<NHMPDashboard>
     with TickerProviderStateMixin {
@@ -115,6 +123,7 @@ class _NHMPDashboardState extends State<NHMPDashboard>
         setState(() {
           isLoading = true;
           errorMessage = null;
+
         });
       }
 
@@ -637,17 +646,61 @@ class _NHMPDashboardState extends State<NHMPDashboard>
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-                  KeyedSubtree(
-                    key: overviewKey,
-                    child: animatedSection(
-                      child: buildTopHeader(),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  animatedSection(
-                    begin: 20,
-                    child: buildSystemStatusBanner(),
-                  ),
+
+KeyedSubtree(
+  key: overviewKey,
+  child: animatedSection(
+    child: buildTopHeader(),
+  ),
+),
+const SizedBox(height: 14),
+
+// OPEN USER DASHBOARD BUTTON
+Align(
+  alignment: Alignment.centerLeft,
+  child: OutlinedButton.icon(
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const UserDashboard(
+            isOpenedFromNHMP: true,
+          ),
+        ),
+      );
+    },
+    icon: const Icon(
+      Icons.person_outline_rounded,
+      color: cyan,
+    ),
+    label: const Text(
+      'Open User Dashboard',
+      style: TextStyle(
+        color: cyan,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    style: OutlinedButton.styleFrom(
+      side: BorderSide(
+        color: cyan.withAlpha(90),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 14,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  ),
+),
+
+const SizedBox(height: 18),
+animatedSection(
+  begin: 20,
+  child: buildSystemStatusBanner(),
+),
+
                   const SizedBox(height: 16),
                   animatedSection(
                     begin: 25,
@@ -1473,8 +1526,8 @@ class _NHMPDashboardState extends State<NHMPDashboard>
       borderColor: color.withAlpha(32),
       radius: 15,
       child: Container(
-        height: 142,
-        padding: const EdgeInsets.all(17),
+        height: 160,
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -2009,95 +2062,75 @@ class _NHMPDashboardState extends State<NHMPDashboard>
               ],
             ),
             const SizedBox(height: 8),
-            Expanded(
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 145,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CustomPaint(
-                          size: const Size(
-                            145,
-                            145,
-                          ),
-                          painter: RiskDonutPainter(
-                            safe: safeCount,
-                            low: lowCount,
-                            moderate: moderateCount,
-                            high: highCount,
-                            critical: criticalCount,
-                          ),
-                        ),
-                        Column(
-                          mainAxisSize:
-                              MainAxisSize.min,
-                          children: [
-                            Text(
-                              riskData.length
-                                  .toString(),
-                              style:
-                                  const TextStyle(
-                                color: Colors.white,
-                                fontSize: 25,
-                                fontWeight:
-                                    FontWeight.w900,
-                              ),
-                            ),
-                            const Text(
-                              "LOCATIONS",
-                              style: TextStyle(
-                                color:
-                                    Colors.white30,
-                                fontSize: 6,
-                                fontWeight:
-                                    FontWeight.w900,
-                                letterSpacing: .8,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+
+Expanded(
+  child: LayoutBuilder(
+    builder: (context, constraints) {
+      final chartSize =
+          (constraints.maxWidth * 0.42).clamp(100.0, 145.0);
+
+      return Row(
+        children: [
+          SizedBox(
+            width: chartSize,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: Size(chartSize, chartSize),
+                  painter: RiskDonutPainter(
+                    safe: safeCount,
+                    low: lowCount,
+                    moderate: moderateCount,
+                    high: highCount,
+                    critical: criticalCount,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
-                      children: [
-                        riskProgress(
-                          "SAFE",
-                          safeCount,
-                          safeColor,
-                        ),
-                        riskProgress(
-                          "LOW",
-                          lowCount,
-                          lowColor,
-                        ),
-                        riskProgress(
-                          "MODERATE",
-                          moderateCount,
-                          moderateColor,
-                        ),
-                        riskProgress(
-                          "HIGH",
-                          highCount,
-                          highColor,
-                        ),
-                        riskProgress(
-                          "CRITICAL",
-                          criticalCount,
-                          criticalColor,
-                        ),
-                      ],
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      riskData.length.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 25,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const Text(
+                      "LOCATIONS",
+                      style: TextStyle(
+                        color: Colors.white30,
+                        fontSize: 6,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .8,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                riskProgress("SAFE", safeCount, safeColor),
+                riskProgress("LOW", lowCount, lowColor),
+                riskProgress("MODERATE", moderateCount, moderateColor),
+                riskProgress("HIGH", highCount, highColor),
+                riskProgress("CRITICAL", criticalCount, criticalColor),
+              ],
+            ),
+          ),
+        ],
+      );
+    },
+
+  ),
+),
+
           ],
         ),
       ),
@@ -3630,17 +3663,93 @@ class _NHMPDashboardState extends State<NHMPDashboard>
             35,
           ),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              animatedSection(
-                child: buildMobileHeader(),
-              ),
-              const SizedBox(height: 16),
-              animatedSection(
-                begin: 15,
-                child: buildMobileStatus(),
-              ),
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+
+
+KeyedSubtree(
+  key: overviewKey,
+  child: animatedSection(
+    child: buildMobileHeader(),
+  ),
+),
+const SizedBox(height: 10),
+
+buildOfficerCard(),
+
+const SizedBox(height: 12),
+
+// OPEN USER DASHBOARD BUTTON
+SizedBox(
+  width: double.infinity,
+  child: OutlinedButton.icon(
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const UserDashboard(
+            isOpenedFromNHMP: true,
+          ),
+        ),
+      );
+    },
+    icon: const Icon(
+      Icons.person_outline_rounded,
+      color: cyan,
+    ),
+    label: const Text(
+      'Open User Dashboard',
+      style: TextStyle(
+        color: cyan,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    style: OutlinedButton.styleFrom(
+      side: BorderSide(
+        color: cyan.withAlpha(90),
+      ),
+      padding: const EdgeInsets.symmetric(
+        vertical: 13,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  ),
+),
+
+const SizedBox(height: 14),
+
+
+  Container(
+    padding: const EdgeInsets.all(6),
+    decoration: BoxDecoration(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: Colors.white.withAlpha(15),
+      ),
+    ),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+
+          _mobileMenuItem(Icons.dashboard_rounded, 'Overview', 0, overviewKey),
+          _mobileMenuItem(Icons.route_rounded, 'Motorway', 1, locationsKey),
+          _mobileMenuItem(Icons.notifications_active_outlined, 'Alerts', 2, alertsKey),
+          _mobileMenuItem(Icons.analytics_outlined, 'Analysis', 3, analysisKey),
+        ],
+      ),
+    ),
+  ),
+
+  const SizedBox(height: 16),
+  animatedSection(
+    begin: 15,
+    child: buildMobileStatus(),
+  ),
+
               const SizedBox(height: 18),
               animatedSection(
                 begin: 20,
@@ -3662,26 +3771,39 @@ class _NHMPDashboardState extends State<NHMPDashboard>
                 child: buildRiskOverview(),
               ),
               const SizedBox(height: 15),
-              animatedSection(
-                begin: 40,
-                child: buildMobileLocations(),
-              ),
+              KeyedSubtree(
+  key: locationsKey,
+  child: animatedSection(
+    begin: 40,
+    child: buildMobileLocations(),
+  ),
+),
               const SizedBox(height: 15),
-              animatedSection(
-                begin: 45,
-                child: buildAlertSection(),
-              ),
+
+KeyedSubtree(
+  key: alertsKey,
+  child: animatedSection(
+    begin: 45,
+    child: buildAlertSection(),
+  ),
+),
+
               const SizedBox(height: 15),
-              animatedSection(
-                begin: 50,
-                child: buildMobileOperational(),
-              ),
+
+KeyedSubtree(
+  key: analysisKey,
+  child: animatedSection(
+    begin: 50,
+    child: buildMobileOperational(),
+  ),
+),
+
               const SizedBox(height: 15),
               animatedSection(
                 begin: 55,
                 child: buildThresholds(),
               ),
-              const SizedBox(height: 20),
+                            const SizedBox(height: 20),
               buildFooter(),
             ],
           ),
@@ -3694,111 +3816,224 @@ class _NHMPDashboardState extends State<NHMPDashboard>
   // MOBILE HEADER
   // ============================================================
 
-  Widget buildMobileHeader() {
-    return Row(
-      children: [
-        Container(
-          width: 43,
-          height: 43,
-          decoration: BoxDecoration(
-            color: cyan.withAlpha(18),
-            borderRadius:
-                BorderRadius.circular(12),
-            border: Border.all(
-              color: cyan.withAlpha(40),
+
+
+Widget buildMobileHeader() {
+  return Row(
+    children: [
+      IconButton(
+        onPressed: () {
+          if (widget.isOpenedFromAdmin) {
+            Navigator.pop(context);
+          } else {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => LoginPage(),
+              ),
+              (route) => false,
+            );
+          }
+        },
+        icon: const Icon(
+          Icons.arrow_back_rounded,
+          color: Colors.white,
+          size: 22,
+        ),
+        tooltip: 'Go back',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(
+          minWidth: 32,
+          minHeight: 40,
+        ),
+      ),
+      const SizedBox(width: 5),
+
+      Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: cyan.withAlpha(18),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: cyan.withAlpha(40),
+          ),
+        ),
+        child: const Icon(
+          Icons.cloud_outlined,
+          color: cyan,
+          size: 22,
+        ),
+      ),
+
+      const SizedBox(width: 8),
+
+      const Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "NHMP OPERATIONS",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                letterSpacing: .8,
+              ),
             ),
-          ),
-          child: const Icon(
-            Icons.cloud_outlined,
-            color: cyan,
-            size: 23,
-          ),
-        ),
-        const SizedBox(width: 10),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                "NHMP OPERATIONS",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight:
-                      FontWeight.w900,
-                  letterSpacing: .8,
-                ),
+            SizedBox(height: 3),
+            Text(
+              "Motorway Safety Intelligence",
+              style: TextStyle(
+                color: Colors.white30,
+                fontSize: 8,
               ),
-              SizedBox(height: 3),
-              Text(
-                "Motorway Safety Intelligence",
-                style: TextStyle(
-                  color: Colors.white30,
-                  fontSize: 8,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-        buildRefreshButton(),
-      ],
-    );
-  }
+      ),
+
+      buildRefreshButton(),
+    ],
+  );
+}
 
   // ============================================================
   // MOBILE STATUS
   // ============================================================
 
-  Widget buildMobileStatus() {
-    return Container(
-      padding:
-          const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius:
-            BorderRadius.circular(13),
-        border: Border.all(
-          color:
-              overallStatusColor.withAlpha(25),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            overallStatus == "NORMAL"
-                ? Icons.verified_rounded
-                : Icons.warning_amber_rounded,
-            color: overallStatusColor,
-            size: 20,
+Widget _mobileMenuItem(
+  IconData icon,
+  String title,
+  int index,
+  GlobalKey targetKey,
+) {
+  final selected = selectedMenu == index;
+
+  return Padding(
+    padding: const EdgeInsets.only(right: 6),
+    child: Material(
+      color: selected
+          ? cyan.withAlpha(22)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          scrollToSection(targetKey, index);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 11,
           ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              overallStatus == "NORMAL"
-                  ? "System operating normally"
-                  : "$overallStatus risk detected",
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 10,
-                fontWeight:
-                    FontWeight.w700,
-              ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected
+                  ? cyan.withAlpha(65)
+                  : Colors.white.withAlpha(12),
             ),
           ),
-          Text(
-            "$alertCount alerts",
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? cyan : Colors.white54,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                title,
+                style: TextStyle(
+                  color: selected
+                      ? Colors.white
+                      : Colors.white60,
+                  fontSize: 11,
+                  fontWeight: selected
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+
+
+Widget buildMobileStatus() {
+  final bool isOnline = true;
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(
+      horizontal: 12,
+      vertical: 13,
+    ),
+    decoration: BoxDecoration(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(13),
+      border: Border.all(
+        color: (isOnline ? safeColor : criticalColor)
+            .withAlpha(45),
+      ),
+    ),
+    child: Row(
+      children: [
+        Icon(
+          isOnline
+              ? Icons.wifi_rounded
+              : Icons.wifi_off_rounded,
+          color: isOnline ? safeColor : criticalColor,
+          size: 19,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE',
+                style: TextStyle(
+                  color: isOnline ? safeColor : criticalColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                overallStatus == 'NORMAL'
+                    ? 'System operating normally'
+                    : '$overallStatus risk detected',
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 9,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            '$alertCount alerts',
+            textAlign: TextAlign.end,
             style: TextStyle(
               color: overallStatusColor,
               fontSize: 9,
-              fontWeight:
-                  FontWeight.w800,
+              fontWeight: FontWeight.w800,
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   // ============================================================
   // MOBILE HERO
@@ -3883,7 +4118,7 @@ class _NHMPDashboardState extends State<NHMPDashboard>
       crossAxisCount: 2,
       crossAxisSpacing: 9,
       mainAxisSpacing: 9,
-      childAspectRatio: 1.38,
+      childAspectRatio: 1.05,
       shrinkWrap: true,
       physics:
           const NeverScrollableScrollPhysics(),
@@ -3939,10 +4174,12 @@ class _NHMPDashboardState extends State<NHMPDashboard>
       child: Container(
         padding:
             const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
+
+child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+
+
             Row(
               children: [
                 buildSectionIcon(

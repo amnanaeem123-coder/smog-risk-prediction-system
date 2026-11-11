@@ -10,6 +10,9 @@ class PreferencesScreen extends StatefulWidget {
 
 class _PreferencesScreenState extends State<PreferencesScreen>
     with SingleTickerProviderStateMixin {
+
+
+
   // ============================================================
   // COLORS
   // ============================================================
@@ -83,61 +86,202 @@ class _PreferencesScreenState extends State<PreferencesScreen>
   // BUILD
   // ============================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _topBar(),
-            Expanded(
-              child: Row(
-                children: [
-                  _settingsSidebar(),
-                  Expanded(
-                    child: _mainContent(),
-                  ),
-                ],
-              ),
-            ),
-          ],
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: bg,
+    body: SafeArea(
+      child: Column(
+        children: [
+          _topBar(),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 650;
+
+                if (isMobile) {
+                  return Column(
+                    children: [
+                      SizedBox(
+                        height: 66,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
+                          children: [
+                            for (int i = 0; i < 6; i++)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: _mobileSectionButton(i),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(14),
+                          child: _mainContent(),
+                        ),
+                      ),
+
+Padding(
+  padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+  child: Row(
+    children: [
+      Expanded(
+        child: ElevatedButton.icon(
+          onPressed: _save,
+          icon: const Icon(Icons.check_rounded, size: 18),
+          label: const Text(
+            'SAVE SETTINGS',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: cyan,
+            foregroundColor: bg,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
         ),
       ),
-    );
-  }
+      const SizedBox(width: 10),
+      Expanded(
+        child: OutlinedButton.icon(
+          onPressed: _reset,
+          icon: const Icon(Icons.restart_alt_rounded, size: 18),
+          label: const Text(
+            'RESET',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: yellow,
+            side: const BorderSide(color: line),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
+                    ],
+                  );
+                }
+return Row(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: [
+    _settingsSidebar(),
+    Expanded(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: _mainContent(),
+      ),
+    ),
+  ],
+);
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _mobileSectionButton(int index) {
+  const titles = [
+    'General',
+    'Monitoring',
+    'Alerts',
+    'Display',
+    'Data & Sync',
+    'Privacy',
+  ];
+
+  const icons = [
+    Icons.dashboard_customize_outlined,
+    Icons.radar_outlined,
+    Icons.warning_amber_rounded,
+    Icons.display_settings_outlined,
+    Icons.sync_rounded,
+    Icons.lock_outline_rounded,
+  ];
+
+  final selected = selectedSection == index;
+
+  return OutlinedButton.icon(
+    onPressed: () {
+      setState(() {
+        selectedSection = index;
+      });
+    },
+    icon: Icon(
+      icons[index],
+      size: 16,
+      color: selected ? cyan : muted,
+    ),
+    label: Text(titles[index]),
+    style: OutlinedButton.styleFrom(
+      foregroundColor: selected ? white : muted,
+      side: BorderSide(
+        color: selected ? cyan : line,
+      ),
+      backgroundColor: selected ? cyan.withAlpha(18) : surface,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+    ),
+  );
+}
 
   // ============================================================
   // TOP BAR
   // ============================================================
 
-  Widget _topBar() {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(
-        color: surface,
-        border: Border(
-          bottom: BorderSide(color: line),
-        ),
+
+Widget _topBar() {
+  final isMobile = MediaQuery.sizeOf(context).width < 650;
+
+  return Container(
+    height: 64,
+    padding: EdgeInsets.symmetric(horizontal: isMobile ? 4 : 24),
+    decoration: const BoxDecoration(
+      color: surface,
+      border: Border(
+        bottom: BorderSide(color: line),
       ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.tune_rounded,
+    ),
+    child: Row(
+      children: [
+        IconButton(
+          tooltip: 'Back to User Dashboard',
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          icon: const Icon(
+            Icons.arrow_back_rounded,
             color: cyan,
-            size: 22,
           ),
-          const SizedBox(width: 12),
-          const Column(
+        ),
+        const Icon(
+          Icons.tune_rounded,
+          color: cyan,
+          size: 22,
+        ),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'PREFERENCES',
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: white,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
                 ),
@@ -145,6 +289,7 @@ class _PreferencesScreenState extends State<PreferencesScreen>
               SizedBox(height: 2),
               Text(
                 'Monitoring Control Center',
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: muted,
                   fontSize: 10,
@@ -152,7 +297,8 @@ class _PreferencesScreenState extends State<PreferencesScreen>
               ),
             ],
           ),
-          const Spacer(),
+        ),
+        if (!isMobile)
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -161,9 +307,7 @@ class _PreferencesScreenState extends State<PreferencesScreen>
             decoration: BoxDecoration(
               color: green.withAlpha(18),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: green.withAlpha(55),
-              ),
+              border: Border.all(color: green.withAlpha(55)),
             ),
             child: Row(
               children: [
@@ -180,20 +324,22 @@ class _PreferencesScreenState extends State<PreferencesScreen>
               ],
             ),
           ),
-          const SizedBox(width: 15),
-          IconButton(
-            onPressed: () {
-              _showMessage('Preferences refreshed');
-            },
-            icon: const Icon(
-              Icons.refresh_rounded,
-              color: muted,
-              size: 20,
-            ),
+        IconButton(
+          tooltip: 'Refresh preferences',
+          onPressed: () {
+            _showMessage('Preferences refreshed');
+          },
+          icon: const Icon(
+            Icons.refresh_rounded,
+            color: muted,
+            size: 20,
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
+
+
   }
 
   Widget _liveDot() {
@@ -247,6 +393,7 @@ class _PreferencesScreenState extends State<PreferencesScreen>
           _sidebarItem(
             icon: Icons.dashboard_customize_outlined,
             title: 'General',
+
             index: 0,
           ),
 
@@ -454,173 +601,193 @@ class _PreferencesScreenState extends State<PreferencesScreen>
   // MAIN CONTENT
   // ============================================================
 
-  Widget _mainContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _pageHeader(),
-          const SizedBox(height: 20),
 
-          _quickControls(),
 
-          const SizedBox(height: 20),
+Widget _mainContent() {
+  return Padding(
+    padding: const EdgeInsets.all(4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _pageHeader(),
+        const SizedBox(height: 20),
+        _quickControls(),
+        const SizedBox(height: 20),
+        _sectionContent(),
+        const SizedBox(height: 22),
+        _monitoringMap(),
+        const SizedBox(height: 20),
+        _livePreview(),
+        const SizedBox(height: 20),
+        _systemConnections(),
+        const SizedBox(height: 30),
+      ],
+    ),
+  );
+}
 
-          _sectionContent(),
-
-          const SizedBox(height: 22),
-
-          _monitoringMap(),
-
-          const SizedBox(height: 20),
-
-          _livePreview(),
-
-          const SizedBox(height: 20),
-
-          _systemConnections(),
-
-          const SizedBox(height: 30),
-        ],
-      ),
-    );
-  }
 
   // ============================================================
   // PAGE HEADER
   // ============================================================
 
-  Widget _pageHeader() {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'System Preferences',
-                style: TextStyle(
-                  color: white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'Configure monitoring behaviour, alerts, routes and dashboard display.',
-                style: TextStyle(
-                  color: muted,
-                  fontSize: 11,
-                ),
-              ),
-            ],
+
+Widget _pageHeader() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 600;
+
+      final heading = const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'System Preferences',
+            style: TextStyle(
+              color: white,
+              fontSize: 25,
+              fontWeight: FontWeight.w900,
+            ),
           ),
+          SizedBox(height: 5),
+          Text(
+            'Configure monitoring behaviour, alerts, routes and dashboard display.',
+            style: TextStyle(
+              color: muted,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      );
+
+      final syncBadge = Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 9,
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 13,
-            vertical: 9,
-          ),
-          decoration: BoxDecoration(
-            color: surface2,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: line),
-          ),
-          child: const Row(
-            children: [
-              Icon(
-                Icons.access_time_rounded,
-                color: cyan,
-                size: 15,
-              ),
-              SizedBox(width: 7),
-              Text(
-                'SYNCED 12 SEC AGO',
-                style: TextStyle(
-                  color: muted,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
+        decoration: BoxDecoration(
+          color: surface2,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: line),
         ),
-      ],
-    );
-  }
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.access_time_rounded,
+              color: cyan,
+              size: 15,
+            ),
+            SizedBox(width: 7),
+            Text(
+              'SYNCED 12 SEC AGO',
+              style: TextStyle(
+                color: muted,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (isMobile) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            heading,
+            const SizedBox(height: 12),
+            syncBadge,
+          ],
+        );
+      }
+
+      return Row(
+        children: [
+          Expanded(child: heading),
+          const SizedBox(width: 12),
+          syncBadge,
+        ],
+      );
+    },
+  );
+}
+
 
   // ============================================================
   // QUICK CONTROLS
   // ============================================================
 
-  Widget _quickControls() {
-    return Row(
-      children: [
-        Expanded(
-          child: _quickControl(
-            icon: Icons.notifications_none_rounded,
-            title: 'Notifications',
-            subtitle: notifications ? 'Enabled' : 'Disabled',
-            value: notifications,
-            onChanged: (v) {
-              setState(() {
-                notifications = v;
-              });
-            },
+
+Widget _quickControls() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 600;
+      final gap = 10.0;
+      final itemWidth = isMobile
+          ? (constraints.maxWidth - gap) / 2
+          : (constraints.maxWidth - gap * 3) / 4;
+
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          SizedBox(
+            width: itemWidth,
+            child: _quickControl(
+              icon: Icons.notifications_none_rounded,
+              title: 'Notifications',
+              subtitle: notifications ? 'Enabled' : 'Disabled',
+              value: notifications,
+              onChanged: (v) {
+                setState(() => notifications = v);
+              },
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _quickControl(
-            icon: Icons.autorenew_rounded,
-            title: 'Auto Refresh',
-            subtitle: autoRefresh
-                ? '${refreshRate.round()} sec'
-                : 'Paused',
-            value: autoRefresh,
-            onChanged: (v) {
-              setState(() {
-                autoRefresh = v;
-              });
-            },
+          SizedBox(
+            width: itemWidth,
+            child: _quickControl(
+              icon: Icons.autorenew_rounded,
+              title: 'Auto Refresh',
+              subtitle: autoRefresh
+                  ? '${refreshRate.round()} sec'
+                  : 'Paused',
+              value: autoRefresh,
+              onChanged: (v) {
+                setState(() => autoRefresh = v);
+              },
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _quickControl(
-            icon: Icons.visibility_outlined,
-            title: 'Visibility',
-            subtitle: visibilityMonitoring
-                ? 'Monitoring'
-                : 'Disabled',
-            value: visibilityMonitoring,
-            onChanged: (v) {
-              setState(() {
-                visibilityMonitoring = v;
-              });
-            },
+          SizedBox(
+            width: itemWidth,
+            child: _quickControl(
+              icon: Icons.visibility_outlined,
+              title: 'Visibility',
+              subtitle: visibilityMonitoring
+                  ? 'Monitoring'
+                  : 'Disabled',
+              value: visibilityMonitoring,
+              onChanged: (v) {
+                setState(() => visibilityMonitoring = v);
+              },
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _quickControl(
-            icon: Icons.alt_route_rounded,
-            title: 'Motorway Network',
-            subtitle: motorwayMonitoring
-                ? 'Active'
-                : 'Disabled',
-            value: motorwayMonitoring,
-            onChanged: (v) {
-              setState(() {
-                motorwayMonitoring = v;
-              });
-            },
+          SizedBox(
+            width: itemWidth,
+            child: _quickControl(
+              icon: Icons.alt_route_rounded,
+              title: 'Motorway Network',
+              subtitle: motorwayMonitoring ? 'Active' : 'Disabled',
+              value: motorwayMonitoring,
+              onChanged: (v) {
+                setState(() => motorwayMonitoring = v);
+              },
+            ),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
+    },
+  );
+}
 
   Widget _quickControl({
     required IconData icon,
@@ -993,29 +1160,31 @@ class _PreferencesScreenState extends State<PreferencesScreen>
     );
   }
 
-  Widget _riskLegend() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          const Text(
-            'Risk indicators',
-            style: TextStyle(
-              color: white,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-            ),
+
+Widget _riskLegend() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Wrap(
+      spacing: 12,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Text(
+          'Risk indicators',
+          style: TextStyle(
+            color: white,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
           ),
-          const Spacer(),
-          _legendItem(green, 'SAFE'),
-          const SizedBox(width: 15),
-          _legendItem(yellow, 'MODERATE'),
-          const SizedBox(width: 15),
-          _legendItem(red, 'HIGH'),
-        ],
-      ),
-    );
-  }
+        ),
+        _legendItem(green, 'SAFE'),
+        _legendItem(yellow, 'MODERATE'),
+        _legendItem(red, 'HIGH'),
+      ],
+    ),
+  );
+}
+
 
   Widget _legendItem(Color color, String text) {
     return Row(
@@ -1116,70 +1285,66 @@ class _PreferencesScreenState extends State<PreferencesScreen>
   // DATA
   // ============================================================
 
-  Widget _dataSettings() {
-    return _settingsPanel(
-      title: 'Data & Synchronization',
-      icon: Icons.sync_rounded,
-      subtitle:
-          'Manage refresh timing and data synchronization.',
-      child: Column(
-        children: [
-          _switchRow(
-            title: 'Auto Refresh',
-            subtitle:
-                'Keep monitoring information updated automatically.',
-            value: autoRefresh,
-            onChanged: (v) {
-              setState(() {
-                autoRefresh = v;
-              });
-            },
-          ),
-          const Divider(color: line),
-          _sliderSetting(
-            title: 'Refresh Frequency',
-            subtitle:
-                'Set the interval for new monitoring data.',
-            value: refreshRate,
-            min: 10,
-            max: 120,
-            suffix: ' sec',
-            onChanged: (v) {
-              setState(() {
-                refreshRate = v;
-              });
-            },
-          ),
-          const Divider(color: line),
-          _connectionStatus(),
-        ],
-      ),
-    );
-  }
 
-  Widget _connectionStatus() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 13),
-      child: Row(
+Widget _dataSettings() {
+  return _settingsPanel(
+    title: 'Data & Synchronization',
+    icon: Icons.sync_rounded,
+    subtitle:
+        'Manage refresh timing and data synchronization.',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _switchRow(
+          title: 'Auto Refresh',
+          subtitle:
+              'Keep monitoring information updated automatically.',
+          value: autoRefresh,
+          onChanged: (v) {
+            setState(() {
+              autoRefresh = v;
+            });
+          },
+        ),
+        const Divider(color: line),
+        _sliderSetting(
+          title: 'Refresh Frequency',
+          subtitle:
+              'Set the interval for new monitoring data.',
+          value: refreshRate,
+          min: 10,
+          max: 120,
+          suffix: ' sec',
+          onChanged: (v) {
+            setState(() {
+              refreshRate = v;
+            });
+          },
+        ),
+        const Divider(color: line),
+        _connectionStatus(),
+      ],
+    ),
+  );
+}
+
+
+Widget _connectionStatus() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 450;
+
+      final connectionInfo = const Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: green.withAlpha(18),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.cloud_done_outlined,
-              color: green,
-              size: 20,
-            ),
+          Icon(
+            Icons.cloud_done_outlined,
+            color: green,
+            size: 20,
           ),
-          const SizedBox(width: 12),
-          const Expanded(
+          SizedBox(width: 10),
+          Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Data Connection',
@@ -1200,62 +1365,128 @@ class _PreferencesScreenState extends State<PreferencesScreen>
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 9,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: green.withAlpha(18),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              'CONNECTED',
-              style: TextStyle(
-                color: green,
-                fontSize: 8,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
         ],
-      ),
-    );
-  }
+      );
+
+      final statusBadge = Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 9,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: green.withAlpha(18),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text(
+          'CONNECTED',
+          style: TextStyle(
+            color: green,
+            fontSize: 8,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      );
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  connectionInfo,
+                  const SizedBox(height: 12),
+                  statusBadge,
+                ],
+              )
+            : Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: green.withAlpha(18),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.cloud_done_outlined,
+                      color: green,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Data Connection',
+                          style: TextStyle(
+                            color: white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Latest data synchronized successfully',
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  statusBadge,
+                ],
+              ),
+      );
+    },
+  );
+}
+
 
   // ============================================================
   // PRIVACY
   // ============================================================
 
-  Widget _privacySettings() {
-    return _settingsPanel(
-      title: 'Privacy & Security',
-      icon: Icons.lock_outline_rounded,
-      subtitle:
-          'Information about system data and local settings.',
-      child: Column(
-        children: [
-          _infoRow(
-            Icons.security_outlined,
-            'Local Configuration',
-            'Your dashboard preferences are managed locally.',
-          ),
-          const Divider(color: line),
-          _infoRow(
-            Icons.storage_outlined,
-            'Monitoring Data',
-            'Risk information is used for system monitoring.',
-          ),
-          const Divider(color: line),
-          _infoRow(
-            Icons.admin_panel_settings_outlined,
-            'Access Control',
-            'System settings are available to authorized users.',
-          ),
-        ],
-      ),
-    );
-  }
+
+Widget _privacySettings() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 450;
+
+      return _settingsPanel(
+        title: 'Privacy & Security',
+        icon: Icons.lock_outline_rounded,
+        subtitle:
+            'Information about system data and local settings.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoRow(
+              Icons.security_outlined,
+              'Local Configuration',
+              'Your dashboard preferences are managed locally.',
+            ),
+            const Divider(color: line),
+            _infoRow(
+              Icons.storage_outlined,
+              'Monitoring Data',
+              'Risk information is used for system monitoring.',
+            ),
+            const Divider(color: line),
+            _infoRow(
+              Icons.admin_panel_settings_outlined,
+              'Access Control',
+              'System settings are available to authorized users.',
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   // ============================================================
   // SETTINGS PANEL
@@ -1579,165 +1810,189 @@ class _PreferencesScreenState extends State<PreferencesScreen>
   // MONITORING MAP
   // ============================================================
 
-  Widget _monitoringMap() {
-    return Container(
-      height: 410,
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: line),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              18,
-              15,
-              18,
-              12,
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.map_outlined,
-                  color: cyan,
-                  size: 19,
-                ),
-                const SizedBox(width: 9),
-                const Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Motorway Monitoring Map',
-                      style: TextStyle(
-                        color: white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
+
+Widget _monitoringMap() {
+  return LayoutBuilder(
+    builder: (context, outerConstraints) {
+      final isMobile = outerConstraints.maxWidth < 600;
+
+      return Container(
+        height: isMobile ? 390 : 410,
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: line),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 18,
+                15,
+                isMobile ? 12 : 18,
+                12,
+              ),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.map_outlined,
+                        color: cyan,
+                        size: 19,
                       ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Interactive live route coverage',
-                      style: TextStyle(
-                        color: muted,
-                        fontSize: 8.5,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                _legendItem(green, 'SAFE'),
-                const SizedBox(width: 12),
-                _legendItem(yellow, 'MODERATE'),
-                const SizedBox(width: 12),
-                _legendItem(red, 'HIGH'),
-              ],
-            ),
-          ),
-          const Divider(
-            color: line,
-            height: 1,
-          ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
-                  children: [
-                    // IMPORTANT:
-                    // SizedBox.expand guarantees that CustomPaint
-                    // gets an actual size and does not become blank.
-                    Positioned.fill(
-                      child: AnimatedBuilder(
-                        animation: animationController,
-                        builder: (context, child) {
-                          return CustomPaint(
-                            painter: _NetworkPainter(
-                              animationValue:
-                                  animationController.value,
-                              routeM2: routeM2,
-                              routeM3: routeM3,
-                              routeM4: routeM4,
-                              selectedRoute: selectedRoute,
+                      SizedBox(width: 9),
+                      Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Motorway Monitoring Map',
+                            style: TextStyle(
+                              color: white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
                             ),
-                            child: const SizedBox.expand(),
-                          );
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Interactive live route coverage',
+                            style: TextStyle(
+                              color: muted,
+                              fontSize: 8.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      _legendItem(green, 'SAFE'),
+                      _legendItem(yellow, 'MODERATE'),
+                      _legendItem(red, 'HIGH'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Divider(
+              color: line,
+              height: 1,
+            ),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 400;
+                  final width = constraints.maxWidth;
+                  final height = constraints.maxHeight;
+
+                  return Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      Positioned.fill(
+                        child: AnimatedBuilder(
+                          animation: animationController,
+                          builder: (context, child) {
+                            return CustomPaint(
+                              painter: _NetworkPainter(
+                                animationValue:
+                                    animationController.value,
+                                routeM2: routeM2,
+                                routeM3: routeM3,
+                                routeM4: routeM4,
+                                selectedRoute: selectedRoute,
+                              ),
+                              child: const SizedBox.expand(),
+                            );
+                          },
+                        ),
+                      ),
+
+                      _mapNode(
+                        left: width * (isNarrow ? 0.04 : 0.16),
+                        top: height * 0.54,
+                        city: 'Lahore',
+                        route: 'M-2 / M-3',
+                        color: green,
+                        onTap: () {
+                          setState(() {
+                            selectedRoute =
+                                routeM2 ? 'M-2' : 'M-3';
+                          });
                         },
                       ),
-                    ),
 
-                    // Lahore
-                    _mapNode(
-                      left: constraints.maxWidth * 0.16,
-                      top: constraints.maxHeight * 0.54,
-                      city: 'Lahore',
-                      route: 'M-2 / M-3',
-                      color: green,
-                      onTap: () {
-                        setState(() {
-                          selectedRoute =
-                              routeM2 ? 'M-2' : 'M-3';
-                        });
-                      },
-                    ),
+                      _mapNode(
+                        left: width * (isNarrow ? 0.59 : 0.70),
+                        top: height * 0.12,
+                        city: 'Islamabad',
+                        route: 'M-2',
+                        color: green,
+                        onTap: () {
+                          setState(() {
+                            selectedRoute = 'M-2';
+                          });
+                        },
+                      ),
 
-                    // Islamabad
-                    _mapNode(
-                      left: constraints.maxWidth * 0.70,
-                      top: constraints.maxHeight * 0.18,
-                      city: 'Islamabad',
-                      route: 'M-2',
-                      color: green,
-                      onTap: () {
-                        setState(() {
-                          selectedRoute = 'M-2';
-                        });
-                      },
-                    ),
+                      _mapNode(
+                        left: width * (isNarrow ? 0.35 : 0.49),
+                        top: height * 0.43,
+                        city: 'Faisalabad',
+                        route: 'M-3',
+                        color: yellow,
+                        onTap: () {
+                          setState(() {
+                            selectedRoute = 'M-3';
+                          });
+                        },
+                      ),
 
-                    // Faisalabad
-                    _mapNode(
-                      left: constraints.maxWidth * 0.49,
-                      top: constraints.maxHeight * 0.48,
-                      city: 'Faisalabad',
-                      route: 'M-3',
-                      color: yellow,
-                      onTap: () {
-                        setState(() {
-                          selectedRoute = 'M-3';
-                        });
-                      },
-                    ),
+                      _mapNode(
+                        left: width * (isNarrow ? 0.61 : 0.72),
+                        top: height * 0.65,
+                        city: 'Multan',
+                        route: 'M-4',
+                        color: red,
+                        onTap: () {
+                          setState(() {
+                            selectedRoute = 'M-4';
+                          });
+                        },
+                      ),
 
-                    // Multan
-                    _mapNode(
-                      left: constraints.maxWidth * 0.72,
-                      top: constraints.maxHeight * 0.72,
-                      city: 'Multan',
-                      route: 'M-4',
-                      color: red,
-                      onTap: () {
-                        setState(() {
-                          selectedRoute = 'M-4';
-                        });
-                      },
-                    ),
-
-                    // Map information
-                    Positioned(
-                      left: 15,
-                      bottom: 12,
-                      child: _mapInfo(),
-                    ),
-                  ],
-                );
-              },
+                      Positioned(
+                        left: 8,
+                        bottom: 8,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: width - 16,
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: _mapInfo(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Widget _mapNode({
     required double left,
@@ -1897,114 +2152,157 @@ class _PreferencesScreenState extends State<PreferencesScreen>
   // LIVE PREVIEW
   // ============================================================
 
-  Widget _livePreview() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: line),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.preview_outlined,
-                color: cyan,
-                size: 19,
-              ),
-              const SizedBox(width: 9),
-              const Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Live Dashboard Preview',
-                    style: TextStyle(
-                      color: white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  SizedBox(height: 3),
-                  Text(
-                    'Preview changes in real time',
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 8.5,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: cyan.withAlpha(15),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: const Text(
-                  'LIVE PREVIEW',
-                  style: TextStyle(
-                    color: cyan,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
 
-          const SizedBox(height: 18),
+Widget _livePreview() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 600;
 
-          Row(
-            children: [
-              _healthRing(),
-
-              const SizedBox(width: 20),
-
-              Expanded(
-                child: Column(
+      return Container(
+        padding: EdgeInsets.all(isMobile ? 12 : 18),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _previewRoute(
-                      'M-2',
-                      'Lahore → Islamabad',
-                      green,
-                      routeM2,
+                    Icon(
+                      Icons.preview_outlined,
+                      color: cyan,
+                      size: 19,
                     ),
-                    const SizedBox(height: 8),
-                    _previewRoute(
-                      'M-3',
-                      'Lahore → Faisalabad',
-                      yellow,
-                      routeM3,
-                    ),
-                    const SizedBox(height: 8),
-                    _previewRoute(
-                      'M-4',
-                      'Multan Corridor',
-                      red,
-                      routeM4,
+                    SizedBox(width: 9),
+                    Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Live Dashboard Preview',
+                          style: TextStyle(
+                            color: white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Preview changes in real time',
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 8.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cyan.withAlpha(15),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: const Text(
+                    'LIVE PREVIEW',
+                    style: TextStyle(
+                      color: cyan,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            if (isMobile) ...[
+              Center(child: _healthRing()),
+              const SizedBox(height: 18),
+
+              _previewRoute(
+                'M-2',
+                'Lahore → Islamabad',
+                green,
+                routeM2,
+              ),
+              const SizedBox(height: 8),
+              _previewRoute(
+                'M-3',
+                'Lahore → Faisalabad',
+                yellow,
+                routeM3,
+              ),
+              const SizedBox(height: 8),
+              _previewRoute(
+                'M-4',
+                'Multan Corridor',
+                red,
+                routeM4,
               ),
 
-              const SizedBox(width: 20),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: _previewStats(),
+              ),
+            ] else ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _healthRing(),
+                  const SizedBox(width: 20),
 
-              _previewStats(),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _previewRoute(
+                          'M-2',
+                          'Lahore → Islamabad',
+                          green,
+                          routeM2,
+                        ),
+                        const SizedBox(height: 8),
+                        _previewRoute(
+                          'M-3',
+                          'Lahore → Faisalabad',
+                          yellow,
+                          routeM3,
+                        ),
+                        const SizedBox(height: 8),
+                        _previewRoute(
+                          'M-4',
+                          'Multan Corridor',
+                          red,
+                          routeM4,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(width: 20),
+                  _previewStats(),
+                ],
+              ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    },
+  );
+}
 
   Widget _healthRing() {
     return SizedBox(
@@ -2202,51 +2500,69 @@ class _PreferencesScreenState extends State<PreferencesScreen>
   // SYSTEM CONNECTIONS
   // ============================================================
 
-  Widget _systemConnections() {
-    return Row(
-      children: [
-        Expanded(
-          child: _connectionCard(
-            icon: Icons.cloud_done_outlined,
-            title: 'DATA API',
-            value: '100%',
-            subtitle: 'Connected',
-            color: green,
+
+Widget _systemConnections() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      const gap = 12.0;
+      const minCardWidth = 180.0;
+
+      final columns = (constraints.maxWidth / (minCardWidth + gap))
+          .floor()
+          .clamp(1, 4);
+
+      final cardWidth =
+          (constraints.maxWidth - (gap * (columns - 1))) / columns;
+
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          SizedBox(
+            width: cardWidth,
+            child: _connectionCard(
+              icon: Icons.cloud_done_outlined,
+              title: 'DATA API',
+              value: '100%',
+              subtitle: 'Connected',
+              color: green,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _connectionCard(
-            icon: Icons.psychology_outlined,
-            title: 'PREDICTION',
-            value: '100%',
-            subtitle: 'Operational',
-            color: green,
+          SizedBox(
+            width: cardWidth,
+            child: _connectionCard(
+              icon: Icons.psychology_outlined,
+              title: 'PREDICTION',
+              value: '100%',
+              subtitle: 'Operational',
+              color: green,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _connectionCard(
-            icon: Icons.visibility_outlined,
-            title: 'VISIBILITY',
-            value: '96%',
-            subtitle: 'Monitoring',
-            color: cyan,
+          SizedBox(
+            width: cardWidth,
+            child: _connectionCard(
+              icon: Icons.visibility_outlined,
+              title: 'VISIBILITY',
+              value: '96%',
+              subtitle: 'Monitoring',
+              color: cyan,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _connectionCard(
-            icon: Icons.storage_outlined,
-            title: 'DATABASE',
-            value: '100%',
-            subtitle: 'Healthy',
-            color: green,
+          SizedBox(
+            width: cardWidth,
+            child: _connectionCard(
+              icon: Icons.storage_outlined,
+              title: 'DATABASE',
+              value: '100%',
+              subtitle: 'Healthy',
+              color: green,
+            ),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
+    },
+  );
+}
 
   Widget _connectionCard({
     required IconData icon,

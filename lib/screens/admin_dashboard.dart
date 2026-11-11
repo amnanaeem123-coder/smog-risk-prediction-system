@@ -5,7 +5,8 @@ import '../widgets/alert_table.dart';
 import '../widgets/motorway_monitor.dart';
 import '../widgets/ai_prediction.dart';
 import '../widgets/risk_chart.dart';
-
+import 'user_dashboard.dart';
+import 'nhmp_dashboard.dart';
 import 'users_screen.dart';
 import 'air_quality_screen.dart';
 import 'alert_screen.dart';
@@ -16,8 +17,15 @@ import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'login_page.dart';
 
-class AdminDashboard extends StatelessWidget {
+class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
+
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  int _selectedTab = 0;
 
   // ============================================================
   // COLORS
@@ -62,6 +70,8 @@ class AdminDashboard extends StatelessWidget {
                 )
               : null,
 
+          bottomNavigationBar: _buildBottomNavigationBar(),
+
           body: SafeArea(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,7 +83,8 @@ class AdminDashboard extends StatelessWidget {
                   ),
 
                 Expanded(
-                  child: SingleChildScrollView(
+                  child: _selectedTab == 0
+                      ? SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     padding: EdgeInsets.fromLTRB(
                       isMobile
@@ -230,13 +241,103 @@ class AdminDashboard extends StatelessWidget {
                         const SizedBox(height: 30),
                       ],
                     ),
-                  ),
+                  )
+                      : _selectedTabContent(),
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _selectedTabContent() {
+    switch (_selectedTab) {
+      case 1:
+        return const UsersScreen();
+      case 2:
+        return const NHMPScreen();
+      case 3:
+        return const SettingsScreen();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: sidebarColor,
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: BottomNavigationBar(
+          currentIndex: _selectedTab,
+
+
+onTap: (index) {
+  if (index == 0) {
+    setState(() {
+      _selectedTab = 0;
+    });
+  } else if (index == 1) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const UserDashboard(
+          isOpenedFromAdmin: true,
+        ),
+      ),
+    );
+  } else if (index == 2) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NHMPDashboard(
+          isOpenedFromAdmin: true,
+        ),
+      ),
+    );
+  } else if (index == 3) {
+    setState(() {
+      _selectedTab = 3;
+    });
+  }
+},
+
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: sidebarColor,
+          selectedItemColor: cyanColor,
+          unselectedItemColor: Colors.white60,
+          showUnselectedLabels: true,
+          selectedFontSize: 11,
+          unselectedFontSize: 10,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.people_rounded),
+              label: 'Users',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shield_rounded),
+              label: 'NHMP',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_rounded),
+              label: 'Settings',
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -697,23 +798,47 @@ class AdminDashboard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // MOBILE MENU
-          if (isMobile) ...[
-            Builder(
-              builder: (drawerContext) {
-                return GestureDetector(
-                  onTap: () {
-                    Scaffold.of(drawerContext).openDrawer();
-                  },
-                  child: _headerButton(
-                    icon: Icons.menu_rounded,
-                    small: true,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 10),
-          ],
+
+ // MOBILE BACK ARROW + MENU
+if (isMobile) ...[
+  IconButton(
+    tooltip: 'Back to Login',
+    onPressed: () {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const LoginPage(),
+        ),
+        (route) => false,
+      );
+    },
+    icon: const Icon(
+      Icons.arrow_back_rounded,
+      color: cyanColor,
+      size: 24,
+    ),
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints(
+      minWidth: 32,
+      minHeight: 40,
+    ),
+  ),
+  const SizedBox(width: 4),
+  Builder(
+    builder: (drawerContext) {
+      return GestureDetector(
+        onTap: () {
+          Scaffold.of(drawerContext).openDrawer();
+        },
+        child: _headerButton(
+          icon: Icons.menu_rounded,
+          small: true,
+        ),
+      );
+    },
+  ),
+  const SizedBox(width: 10),
+],
+
 
           // ADMIN ICON
           Container(

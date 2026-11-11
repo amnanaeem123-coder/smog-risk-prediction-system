@@ -12,8 +12,16 @@ import 'motorway_network_screen.dart';
 import 'risk_alerts_screen.dart';
 import 'system_status_screen.dart';
 import 'preferences_screen.dart';
+
 class UserDashboard extends StatefulWidget {
-  const UserDashboard({super.key});
+  final bool isOpenedFromAdmin;
+  final bool isOpenedFromNHMP;
+
+  const UserDashboard({
+    super.key,
+    this.isOpenedFromAdmin = false,
+    this.isOpenedFromNHMP = false,
+  });
 
   @override
   State<UserDashboard> createState() => _UserDashboardState();
@@ -443,21 +451,27 @@ class _UserDashboardState extends State<UserDashboard>
     );
   }
 
-  Widget _buildMobileLayout() {
-    return SafeArea(
+
+
+Widget _buildMobileLayout() {
+  return SafeArea(
+    child: SingleChildScrollView(
+      padding: EdgeInsets.zero,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildMobileHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 30),
-              child: _buildDashboardContent(),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+            child: _buildDashboardContent(),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+
+
 
   Widget _buildSidebar() {
     return Container(
@@ -822,70 +836,271 @@ class _UserDashboardState extends State<UserDashboard>
     );
   }
 
-  Widget _buildMobileHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
-      decoration: BoxDecoration(
-        color: navy2.withAlpha(245),
-        border: Border(
-          bottom: BorderSide(
-            color: border.withAlpha(170),
-          ),
-        ),
+
+Widget _buildMobileHeader() {
+  return Container(
+    padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+    decoration: BoxDecoration(
+      color: navy2.withAlpha(245),
+      border: Border(
+        bottom: BorderSide(color: border.withAlpha(170)),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  cyan,
-                  teal,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.cloud_queue_rounded,
-              color: navy,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'SMOG RISK\nPREDICTION SYSTEM',
-              style: TextStyle(
-                color: white,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                height: 1.05,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: _refreshData,
-            icon: RotationTransition(
-              turns: _refreshController,
-              child: const Icon(
-                Icons.refresh_rounded,
-                color: cyan,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: _logout,
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: muted,
-            ),
-          ),
-        ],
+    ),
+    child: Row(
+      children: [
+
+        // BACK BUTTON
+        IconButton(
+          tooltip: 'Go back',
+
+onPressed: () {
+  if (widget.isOpenedFromAdmin ||
+      widget.isOpenedFromNHMP) {
+    Navigator.of(context).maybePop();
+  } else {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const LoginPage(),
       ),
+      (route) => false,
     );
   }
+},
+icon: const Icon(
+  Icons.arrow_back_rounded,
+  color: cyan,
+  size: 24,
+),
+
+        ),
+
+
+        // MOBILE MENU BUTTON
+        IconButton(
+
+
+          tooltip: 'Open navigation menu',
+          onPressed: () {
+            showModalBottomSheet<void>(
+              context: context,
+              backgroundColor: navy2,
+              isScrollControlled: true,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              builder: (menuContext) {
+                return SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 42,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: muted,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        const Text(
+                          'NAVIGATION',
+                          style: TextStyle(
+                            color: cyan,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // OVERVIEW
+                        ListTile(
+                          leading: const Icon(
+                            Icons.dashboard_rounded,
+                            color: cyan,
+                          ),
+                          title: const Text(
+                            'Overview',
+                            style: TextStyle(color: white),
+                          ),
+                          onTap: () {
+                            Navigator.pop(menuContext);
+                          },
+                        ),
+
+                        // MOTORWAY NETWORK
+                        ListTile(
+                          leading: const Icon(
+                            Icons.route_rounded,
+                            color: cyan,
+                          ),
+                          title: const Text(
+                            'Motorway Network',
+                            style: TextStyle(color: white),
+                          ),
+                          onTap: () {
+                            Navigator.pop(menuContext);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const MotorwayNetworkScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // RISK ALERTS
+                        ListTile(
+                          leading: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: moderate,
+                          ),
+                          title: const Text(
+                            'Risk Alerts',
+                            style: TextStyle(color: white),
+                          ),
+                          trailing: Text(
+                            (_countRisk('MODERATE') +
+                                    _countRisk('HIGH') +
+                                    _countRisk('CRITICAL'))
+                                .toString(),
+                            style: const TextStyle(
+                              color: moderate,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(menuContext);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const RiskAlertsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const Divider(color: border),
+
+                        // SYSTEM STATUS
+                        ListTile(
+                          leading: const Icon(
+                            Icons.info_outline_rounded,
+                            color: cyan,
+                          ),
+                          title: const Text(
+                            'System Status',
+                            style: TextStyle(color: white),
+                          ),
+                          onTap: () {
+                            Navigator.pop(menuContext);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const SystemStatusScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // PREFERENCES
+                        ListTile(
+                          leading: const Icon(
+                            Icons.settings_outlined,
+                            color: cyan,
+                          ),
+                          title: const Text(
+                            'Preferences',
+                            style: TextStyle(color: white),
+                          ),
+                          onTap: () {
+                            Navigator.pop(menuContext);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const PreferencesScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+          icon: const Icon(
+            Icons.menu_rounded,
+            color: cyan,
+            size: 27,
+          ),
+        ),
+
+        // LOGO
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [cyan, teal],
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.cloud_queue_rounded,
+            color: navy,
+            size: 20,
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        const Expanded(
+          child: Text(
+            'SMOG RISK\nPREDICTION SYSTEM',
+            style: TextStyle(
+              color: white,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+            ),
+          ),
+        ),
+
+        // REFRESH
+        IconButton(
+          tooltip: 'Refresh data',
+          onPressed: _refreshData,
+          icon: RotationTransition(
+            turns: _refreshController,
+            child: const Icon(
+              Icons.refresh_rounded,
+              color: cyan,
+            ),
+          ),
+        ),
+
+        // LOGOUT
+        IconButton(
+          tooltip: 'Sign out',
+          onPressed: _logout,
+          icon: const Icon(
+            Icons.logout_rounded,
+            color: muted,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildDashboardContent() {
     return Column(
@@ -1435,138 +1650,164 @@ class _UserDashboardState extends State<UserDashboard>
     );
   }
 
-  Widget _buildStatsRow() {
-    final stats = [
-      _StatData(
-        title: 'MONITORED',
-        value: _locations.length.toString(),
-        subtitle: 'locations',
-        icon: Icons.location_on_rounded,
-        accent: cyan,
-      ),
-      _StatData(
-        title: 'SAFE',
-        value: _countRisk('SAFE').toString(),
-        subtitle: 'normal operation',
-        icon: Icons.check_circle_rounded,
-        accent: safe,
-      ),
-      _StatData(
-        title: 'ATTENTION',
-        value: (_countRisk('MODERATE') +
-                _countRisk('HIGH') +
-                _countRisk('CRITICAL'))
-            .toString(),
-        subtitle: 'need attention',
-        icon: Icons.warning_rounded,
-        accent: moderate,
-      ),
-      _StatData(
-        title: 'AVG VISIBILITY',
-        value: _averageVisibility.toStringAsFixed(1),
-        subtitle: 'kilometres',
-        icon: Icons.visibility_rounded,
-        accent: cyan2,
-      ),
-    ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth < 700 ? 2 : 4;
-        const spacing = 10.0;
-        final itemWidth =
-            (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+Widget _buildStatsRow() {
+  final stats = [
+    _StatData(
+      title: 'MONITORED',
+      value: _locations.length.toString(),
+      subtitle: 'locations',
+      icon: Icons.location_on_rounded,
+      accent: cyan,
+    ),
+    _StatData(
+      title: 'SAFE',
+      value: _countRisk('SAFE').toString(),
+      subtitle: 'normal operation',
+      icon: Icons.check_circle_rounded,
+      accent: safe,
+    ),
+    _StatData(
+      title: 'ATTENTION',
+      value: (_countRisk('MODERATE') +
+              _countRisk('HIGH') +
+              _countRisk('CRITICAL'))
+          .toString(),
+      subtitle: 'need attention',
+      icon: Icons.warning_rounded,
+      accent: moderate,
+    ),
+    _StatData(
+      title: 'AVG VISIBILITY',
+      value: _averageVisibility.toStringAsFixed(1),
+      subtitle: 'kilometres',
+      icon: Icons.visibility_rounded,
+      accent: cyan2,
+    ),
+  ];
 
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: stats.map(
-            (stat) {
-              return SizedBox(
-                width: itemWidth,
-                child: _HoverCard(
-                  child: _buildStatCard(stat),
-                ),
-              );
-            },
-          ).toList(),
-        );
-      },
-    );
-  }
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      const spacing = 10.0;
 
-  Widget _buildStatCard(_StatData stat) {
-    return Container(
-      height: 100,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: panel.withAlpha(230),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: stat.accent.withAlpha(45),
+      final columns = constraints.maxWidth < 320
+          ? 1
+          : constraints.maxWidth < 700
+              ? 2
+              : 4;
+
+      final availableWidth = constraints.maxWidth.isFinite
+          ? constraints.maxWidth
+          : MediaQuery.sizeOf(context).width - 24;
+
+      final itemWidth = (
+        (availableWidth - ((columns - 1) * spacing)) /
+        columns
+      ).clamp(0.0, availableWidth);
+
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: stats.map((stat) {
+          return SizedBox(
+            width: itemWidth,
+            child: _HoverCard(
+              child: _buildStatCard(stat),
+            ),
+          );
+        }).toList(),
+      );
+    },
+  );
+}
+
+
+Widget _buildStatCard(_StatData stat) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 190;
+
+      return Container(
+        constraints: const BoxConstraints(
+          minHeight: 100,
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 39,
-            height: 39,
-            decoration: BoxDecoration(
-              color: stat.accent.withAlpha(17),
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(
-                color: stat.accent.withAlpha(38),
+        padding: EdgeInsets.all(compact ? 10 : 14),
+        decoration: BoxDecoration(
+          color: panel.withAlpha(230),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: stat.accent.withAlpha(45),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: compact ? 30 : 39,
+              height: compact ? 30 : 39,
+              decoration: BoxDecoration(
+                color: stat.accent.withAlpha(17),
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(
+                  color: stat.accent.withAlpha(38),
+                ),
+              ),
+              child: Icon(
+                stat.icon,
+                color: stat.accent,
+                size: compact ? 16 : 19,
               ),
             ),
-            child: Icon(
-              stat.icon,
-              color: stat.accent,
-              size: 19,
+            SizedBox(width: compact ? 7 : 11),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    stat.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: muted,
+                      fontSize: compact ? 8 : 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: compact ? 0 : .5,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      stat.value,
+                      style: TextStyle(
+                        color: white,
+                        fontSize: compact ? 19 : 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    stat.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: muted,
+                      fontSize: compact ? 9 : 10.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // CHANGE 4: slightly larger, more readable
-                Text(
-                  stat.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .8,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  stat.value,
-                  style: const TextStyle(
-                    color: white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(
-                  stat.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 10.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    },
+  );
+}
+
 
   Widget _buildAnalyticsRow() {
     return LayoutBuilder(
@@ -2208,95 +2449,136 @@ class _UserDashboardState extends State<UserDashboard>
     );
   }
 
-  Widget _buildLocationsPanel() {
-    return _panelContainer(
-      title: 'MONITORED LOCATIONS',
-      subtitle: 'Location-level motorway condition monitoring',
-      icon: Icons.location_searching_rounded,
-      accent: cyan,
-      // All risk levels now have a filter button.
-      // Wrap lets the buttons move to a second line on small screens.
-      trailing: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
-        child: Wrap(
-          alignment: WrapAlignment.end,
-          spacing: 5,
-          runSpacing: 5,
+
+Widget _buildLocationsPanel() {
+  return LayoutBuilder(
+    builder: (context, screenConstraints) {
+      final isMobile = screenConstraints.maxWidth < 600;
+
+      return _panelContainer(
+        title: 'MONITORED LOCATIONS',
+        subtitle: 'Location-level motorway condition monitoring',
+        icon: Icons.location_searching_rounded,
+        accent: cyan,
+
+        // On mobile, filters appear below the heading.
+        trailing: isMobile
+            ? null
+            : ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: [
+                    _buildFilterButton('ALL'),
+                    _buildFilterButton('SAFE'),
+                    _buildFilterButton('LOW'),
+                    _buildFilterButton('MODERATE'),
+                    _buildFilterButton('HIGH'),
+                    _buildFilterButton('CRITICAL'),
+                  ],
+                ),
+              ),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildFilterButton('ALL'),
-            _buildFilterButton('SAFE'),
-            _buildFilterButton('LOW'),
-            _buildFilterButton('MODERATE'),
-            _buildFilterButton('HIGH'),
-            _buildFilterButton('CRITICAL'),
-          ],
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: navy.withAlpha(180),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: border,
+            if (isMobile) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _buildFilterButton('ALL'),
+                  _buildFilterButton('SAFE'),
+                  _buildFilterButton('LOW'),
+                  _buildFilterButton('MODERATE'),
+                  _buildFilterButton('HIGH'),
+                  _buildFilterButton('CRITICAL'),
+                ],
               ),
-            ),
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  _search = value;
-                });
-              },
-              style: const TextStyle(
-                color: white,
-                fontSize: 11,
-              ),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: muted2,
-                  size: 18,
-                ),
-                hintText: 'Search city...',
-                hintStyle: TextStyle(
-                  color: muted2,
-                  fontSize: 10,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final list = _filteredLocations;
+              const SizedBox(height: 12),
+            ],
 
-              if (list.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.all(25),
-                  child: Text(
-                    'No location matches this filter or search.',
-                    style: TextStyle(
-                      color: muted,
-                      fontSize: 11,
-                    ),
+            SizedBox(
+              height: 42,
+              child: TextField(
+                onChanged: (value) {
+                  setState(() {
+                    _search = value;
+                  });
+                },
+                style: const TextStyle(
+                  color: white,
+                  fontSize: 12,
+                ),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: navy.withAlpha(180),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
                   ),
-                );
-              }
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: cyan),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: muted2,
+                    size: 19,
+                  ),
+                  hintText: 'Search city...',
+                  hintStyle: const TextStyle(
+                    color: muted2,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
 
-              final columns = constraints.maxWidth < 700 ? 1 : 2;
-              const spacing = 10.0;
-              final itemWidth = columns == 1
-                  ? constraints.maxWidth
-                  : (constraints.maxWidth - spacing) / 2;
+            const SizedBox(height: 12),
 
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: list.map(
-                  (item) {
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final list = _filteredLocations;
+
+                if (list.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(
+                      child: Text(
+                        'No location matches this filter or search.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                final columns =
+                    constraints.maxWidth < 700 ? 1 : 2;
+                const spacing = 10.0;
+
+                final itemWidth = columns == 1
+                    ? constraints.maxWidth
+                    : (constraints.maxWidth - spacing) / 2;
+
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: list.map((item) {
                     return SizedBox(
                       width: itemWidth,
                       child: _LocationCard(
@@ -2312,15 +2594,17 @@ class _UserDashboardState extends State<UserDashboard>
                         },
                       ),
                     );
-                  },
-                ).toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 
   Widget _buildFilterButton(String value) {
     final selected = _filter == value;
@@ -2694,195 +2978,186 @@ class _LocationCardState extends State<_LocationCard> {
   static const Color _border = Color(0xFF1B3B55);
 
   @override
-  Widget build(BuildContext context) {
-    final city = widget.item['city'].toString();
-    final risk = widget.item['risk_level'].toString();
 
-    final visibility = double.tryParse(
-          widget.item['visibility_km'].toString(),
-        ) ??
-        0;
+@override
+Widget build(BuildContext context) {
+  final city = widget.item['city'].toString();
+  final risk = widget.item['risk_level'].toString();
 
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          _hovered = true;
-        });
-      },
-      onExit: (_) {
-        setState(() {
-          _hovered = false;
-        });
-      },
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        transform: Matrix4.translationValues(
-          0,
-          _hovered ? -3 : 0,
-          0,
-        ),
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: _hovered
-              ? const Color(0xFF112B43)
-              : const Color(0xFF0B2034),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: widget.riskColor.withAlpha(
-              _hovered ? 75 : 38,
-            ),
+  final visibility = double.tryParse(
+        widget.item['visibility_km'].toString(),
+      ) ??
+      0;
+
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 360;
+
+      return MouseRegion(
+        onEnter: (_) {
+          setState(() => _hovered = true);
+        },
+        onExit: (_) {
+          setState(() => _hovered = false);
+        },
+        cursor: SystemMouseCursors.click,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          transform: Matrix4.translationValues(
+            0,
+            _hovered ? -3 : 0,
+            0,
           ),
-          boxShadow: [
-            if (_hovered)
-              BoxShadow(
-                color: widget.riskColor.withAlpha(18),
-                blurRadius: 20,
+          padding: EdgeInsets.all(compact ? 10 : 13),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? const Color(0xFF112B43)
+                : const Color(0xFF0B2034),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: widget.riskColor.withAlpha(
+                _hovered ? 75 : 38,
               ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: widget.riskColor.withAlpha(15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: widget.riskColor.withAlpha(35),
+            ),
+            boxShadow: [
+              if (_hovered)
+                BoxShadow(
+                  color: widget.riskColor.withAlpha(18),
+                  blurRadius: 20,
+                ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: compact ? 30 : 38,
+                height: compact ? 30 : 38,
+                decoration: BoxDecoration(
+                  color: widget.riskColor.withAlpha(15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: widget.riskColor.withAlpha(35),
+                  ),
+                ),
+                child: Icon(
+                  Icons.location_on_rounded,
+                  color: widget.riskColor,
+                  size: compact ? 16 : 18,
                 ),
               ),
-              child: Icon(
-                Icons.location_on_rounded,
-                color: widget.riskColor,
-                size: 18,
-              ),
-            ),
-
-            const SizedBox(width: 10),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          city,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 7),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: widget.riskColor.withAlpha(17),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          risk,
-                          style: TextStyle(
-                            color: widget.riskColor,
-                            fontSize: 7,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 3),
-
-                  Text(
-                    '${widget.route}  •  monitored location',
-                    style: const TextStyle(
-                      color: _muted2,
-                      fontSize: 8.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.visibility_outlined,
-                        color: _muted,
-                        size: 13,
-                      ),
-
-                      const SizedBox(width: 5),
-
-                      Text(
-                        '${visibility.toStringAsFixed(2)} km',
-                        style: const TextStyle(
-                          color: _white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-
-                      const SizedBox(width: 13),
-
-                      Expanded(
-                        child: _visibilityBar(
-                          visibility,
-                          widget.riskColor,
-                        ),
-                      ),
-
-                      const SizedBox(width: 9),
-
-                      InkWell(
-                        onTap: widget.onDetails,
-                        borderRadius: BorderRadius.circular(7),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _cyan.withAlpha(12),
-                            borderRadius: BorderRadius.circular(7),
-                            border: Border.all(
-                              color: _cyan.withAlpha(30),
-                            ),
-                          ),
-                          child: const Text(
-                            'DETAILS',
-                            style: TextStyle(
-                              color: _cyan,
-                              fontSize: 7,
+              SizedBox(width: compact ? 7 : 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            city,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _white,
+                              fontSize: 12,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.riskColor.withAlpha(17),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            risk,
+                            style: TextStyle(
+                              color: widget.riskColor,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${widget.route} • monitored location',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _muted2,
+                        fontSize: 9,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.visibility_outlined,
+                          color: _muted,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${visibility.toStringAsFixed(1)} km',
+                          style: const TextStyle(
+                            color: _white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _visibilityBar(
+                            visibility,
+                            widget.riskColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: widget.onDetails,
+                        style: TextButton.styleFrom(
+                          foregroundColor: _cyan,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.padded,
+                        ),
+                        child: const Text(
+                          'VIEW DETAILS',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
-  Widget _visibilityBar(
+
+ Widget _visibilityBar (
     double visibility,
     Color color,
   ) {

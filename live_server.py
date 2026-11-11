@@ -21,7 +21,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 # Change this path if your forecast script saves the file somewhere else.
-DATA_FILE = r"C:\Users\Admin\Desktop\smog-risk-prediction-system\assets\data\latest_risk.json"
+DATA_FILE = r"C:\flutter_projects\FYP-APP\smog_risk_prediction_system\assets\data\latest_risk.json"
 
 app = Flask(__name__)
 CORS(app)  # Allows the Flutter web app (different port) to call this server.

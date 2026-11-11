@@ -536,97 +536,125 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
   // LIVE BANNER
   // ============================================================
 
-  Widget _buildLiveBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 13,
-      ),
-      decoration: BoxDecoration(
-        color: green.withOpacity(.055),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: green.withOpacity(.20),
-        ),
-      ),
-      child: Row(
-        children: [
-          AnimatedBuilder(
-            animation: _animationController,
-            builder: (_, __) {
-              final opacity =
-                  0.35 + (_animationController.value * 0.65);
 
-              return Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: green.withOpacity(opacity),
-                  boxShadow: [
-                    BoxShadow(
-                      color: green.withOpacity(.30),
-                      blurRadius: 9,
+  Widget _buildLiveBanner() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 450;
+
+        final liveIndicator = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: _animationController,
+              builder: (_, __) {
+                final opacity =
+                    0.35 + (_animationController.value * 0.65);
+
+                return Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: green.withOpacity(opacity),
+                    boxShadow: [
+                      BoxShadow(
+                        color: green.withOpacity(.30),
+                        blurRadius: 9,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'LIVE MONITORING',
+              style: TextStyle(
+                color: green,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        );
+
+        final updatedText = Text(
+          'Updated $_liveSeconds sec ago',
+          style: const TextStyle(
+            color: muted2,
+            fontSize: 10,
+          ),
+        );
+
+        final timeText = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.access_time_rounded,
+              color: muted2,
+              size: 14,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              currentTime,
+              style: const TextStyle(
+                color: muted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 13,
+          ),
+          decoration: BoxDecoration(
+            color: green.withOpacity(.055),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: green.withOpacity(.20),
+            ),
+          ),
+          child: isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: [
+                        liveIndicator,
+                        timeText,
+                      ],
                     ),
+                    const SizedBox(height: 10),
+                    updatedText,
+                  ],
+                )
+              : Row(
+                  children: [
+                    liveIndicator,
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 1,
+                      height: 16,
+                      color: border,
+                    ),
+                    const SizedBox(width: 12),
+                    updatedText,
+                    const Spacer(),
+                    timeText,
                   ],
                 ),
-              );
-            },
-          ),
-
-          const SizedBox(width: 10),
-
-          const Text(
-            'LIVE MONITORING',
-            style: TextStyle(
-              color: green,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1,
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          Container(
-            width: 1,
-            height: 16,
-            color: border,
-          ),
-
-          const SizedBox(width: 12),
-
-          Text(
-            'Updated $_liveSeconds sec ago',
-            style: const TextStyle(
-              color: muted2,
-              fontSize: 10,
-            ),
-          ),
-
-          const Spacer(),
-
-          Row(
-            children: [
-              const Icon(
-                Icons.access_time_rounded,
-                color: muted2,
-                size: 14,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                currentTime,
-                style: const TextStyle(
-                  color: muted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1509,110 +1537,135 @@ class _SystemStatusScreenState extends State<SystemStatusScreen>
     }
   }
 
-  Widget _networkRoute(
-    String route,
-    String start,
-    String end,
-    String risk,
-  ) {
-    final color = _routeColor(risk);
 
-    return Container(
-      margin: const EdgeInsets.only(
-        bottom: 14,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 14,
-      ),
-      decoration: BoxDecoration(
-        color: navy2,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: color.withOpacity(.18),
+Widget _networkRoute(
+  String route,
+  String start,
+  String end,
+  String risk,
+) {
+  final color = _routeColor(risk);
+
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 450;
+
+      final routeBadge = Container(
+        width: 50,
+        height: 38,
+        decoration: BoxDecoration(
+          color: color.withOpacity(.08),
+          borderRadius: BorderRadius.circular(10),
         ),
-      ),
-      child: Row(
+        child: Center(
+          child: Text(
+            route,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      );
+
+      final routeStatus = Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 50,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withOpacity(.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(
-                route,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
+          Icon(
+            Icons.circle,
+            color: color,
+            size: 8,
           ),
-
-          const SizedBox(width: 15),
-
-          Expanded(
-            child: SizedBox(
-              height: 50,
-              child: CustomPaint(
-                painter: _NetworkLinePainter(
-                  color: color,
-                ),
-                child: Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
-                  children: [
-                    _networkNode(
-                      start,
-                      color,
-                    ),
-                    _networkNode(
-                      'Monitoring',
-                      color,
-                    ),
-                    _networkNode(
-                      end,
-                      color,
-                    ),
-                  ],
-                ),
-              ),
+          const SizedBox(width: 5),
+          Text(
+            risk == 'SAFE' ? 'ACTIVE' : risk,
+            style: TextStyle(
+              color: color,
+              fontSize: 8,
+              fontWeight: FontWeight.w900,
+              letterSpacing: .5,
             ),
-          ),
-
-          const SizedBox(width: 15),
-
-          Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.end,
-            children: [
-              Icon(
-                Icons.circle,
-                color: color,
-                size: 8,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                risk == 'SAFE'
-                    ? 'ACTIVE'
-                    : risk,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .6,
-                ),
-              ),
-            ],
           ),
         ],
-      ),
-    );
-  }
+      );
+
+      final routeDiagram = SizedBox(
+        height: 50,
+        width: double.infinity,
+        child: CustomPaint(
+          painter: _NetworkLinePainter(color: color),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _networkNode(start, color),
+              _networkNode('Monitoring', color),
+              _networkNode(end, color),
+            ],
+          ),
+        ),
+      );
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        decoration: BoxDecoration(
+          color: navy2,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: color.withOpacity(.18),
+          ),
+        ),
+        child: isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      routeBadge,
+                      const Spacer(),
+                      routeStatus,
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  routeDiagram,
+                ],
+              )
+            : Row(
+                children: [
+                  routeBadge,
+                  const SizedBox(width: 15),
+                  Expanded(child: routeDiagram),
+                  const SizedBox(width: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        color: color,
+                        size: 8,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        risk == 'SAFE' ? 'ACTIVE' : risk,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: .5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+      );
+    },
+  );
+}
 
   Widget _networkNode(
     String title,

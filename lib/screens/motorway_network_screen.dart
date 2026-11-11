@@ -579,7 +579,9 @@ class _MotorwayNetworkScreenState extends State<MotorwayNetworkScreen>
   // ============================================================
 
   Widget _buildMainContent() {
-    return SingleChildScrollView(
+    return Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: AnimatedBuilder(
@@ -613,6 +615,7 @@ class _MotorwayNetworkScreenState extends State<MotorwayNetworkScreen>
             _buildLocations(),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1383,108 +1386,117 @@ class _MotorwayNetworkScreenState extends State<MotorwayNetworkScreen>
   // LOCATIONS
   // ============================================================
 
-  Widget _buildLocations() {
-    final data = filteredLocations;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'MONITORED LOCATIONS',
-                    style: TextStyle(
-                      color: white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Latest backend records by city',
-                    style: TextStyle(
-                      color: muted2,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: 210,
-              height: 36,
-              child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    searchQuery = value;
-                  });
-                },
-                style: const TextStyle(
-                  color: white,
-                  fontSize: 10,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Search city or route...',
-                  hintStyle: const TextStyle(
-                    color: muted2,
-                    fontSize: 10,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: muted2,
-                    size: 17,
-                  ),
-                  filled: true,
-                  fillColor: panel,
-                  contentPadding:
-                      const EdgeInsets.symmetric(
-                    vertical: 0,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: cyan),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+Widget _buildLocations() {
+  final data = filteredLocations;
 
-        const SizedBox(height: 12),
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 500;
 
-        _buildFilters(),
-
-        const SizedBox(height: 10),
-
-        if (data.isEmpty)
-          _emptyCard(
-            'No locations found',
-            'Try another route or search term.',
-          )
-        else
-          ...data.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(
-                bottom: 9,
-              ),
-              child: _locationCard(item),
+      final heading = const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'MONITORED LOCATIONS',
+            style: TextStyle(
+              color: white,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
             ),
           ),
-      ],
-    );
-  }
+          SizedBox(height: 4),
+          Text(
+            'Latest backend records by city',
+            style: TextStyle(
+              color: muted2,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      );
+
+      final searchBox = SizedBox(
+        width: isMobile ? double.infinity : 210,
+        height: 40,
+        child: TextField(
+          onChanged: (value) {
+            setState(() {
+              searchQuery = value;
+            });
+          },
+          style: const TextStyle(
+            color: white,
+            fontSize: 12,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Search city or route...',
+            hintStyle: const TextStyle(
+              color: muted2,
+              fontSize: 11,
+            ),
+            prefixIcon: const Icon(
+              Icons.search_rounded,
+              color: muted2,
+              size: 18,
+            ),
+            filled: true,
+            fillColor: panel,
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 8,
+              horizontal: 10,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: cyan),
+            ),
+          ),
+        ),
+      );
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isMobile) ...[
+            heading,
+            const SizedBox(height: 12),
+            searchBox,
+          ] else
+            Row(
+              children: [
+                Expanded(child: heading),
+                const SizedBox(width: 12),
+                searchBox,
+              ],
+            ),
+
+          const SizedBox(height: 12),
+
+          _buildFilters(),
+
+          const SizedBox(height: 10),
+
+          if (data.isEmpty)
+            _emptyCard(
+              'No locations found',
+              'Try another route or search term.',
+            )
+          else
+            ...data.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: _locationCard(item),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
 
   Widget _buildFilters() {
     final filters = [
@@ -1541,167 +1553,197 @@ class _MotorwayNetworkScreenState extends State<MotorwayNetworkScreen>
     );
   }
 
-  Widget _locationCard(Map<String, dynamic> item) {
-    final city = '${item['city'] ?? 'Unknown'}';
-    final route = routeForCity(city);
-    final risk = '${item['risk_level'] ?? 'UNKNOWN'}';
-    final visibility = visibilityValue(item);
-    final dateTime = '${item['datetime'] ?? 'N/A'}';
-    final recommendation =
-        '${item['recommendation'] ?? 'No recommendation available.'}';
 
-    final color = riskColor(risk);
+Widget _locationCard(Map<String, dynamic> item) {
+  final city = '${item['city'] ?? 'Unknown'}';
+  final route = routeForCity(city);
+  final risk = '${item['risk_level'] ?? 'UNKNOWN'}';
+  final visibility = visibilityValue(item);
+  final dateTime = '${item['datetime'] ?? 'N/A'}';
+  final recommendation =
+      '${item['recommendation'] ?? 'No recommendation available.'}';
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          _showDetails(item);
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: panel,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: border,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                  color: color.withAlpha(15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: color.withAlpha(45),
+  final color = riskColor(risk);
+
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final isMobile = constraints.maxWidth < 550;
+
+      final locationIcon = Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: color.withAlpha(15),
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: color.withAlpha(45)),
+        ),
+        child: Icon(riskIcon(risk), color: color, size: 20),
+      );
+
+      final cityInfo = Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 7,
+              runSpacing: 5,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  city,
+                  style: const TextStyle(
+                    color: white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                child: Icon(
-                  riskIcon(risk),
-                  color: color,
-                  size: 21,
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          city,
-                          style: const TextStyle(
-                            color: white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding:
-                              const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cyan.withAlpha(13),
-                            borderRadius:
-                                BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            route,
-                            style: const TextStyle(
-                              color: cyan,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: cyan.withAlpha(13),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    route,
+                    style: const TextStyle(
+                      color: cyan,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      dateTime,
-                      style: const TextStyle(
-                        color: muted2,
-                        fontSize: 8.5,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-
-              _miniMetric(
-                Icons.visibility_rounded,
-                '${visibility.toStringAsFixed(2)} km',
-                'VISIBILITY',
-              ),
-
-              const SizedBox(width: 18),
-
-              Container(
-                width: 1,
-                height: 35,
-                color: border,
-              ),
-
-              const SizedBox(width: 18),
-
-              Container(
-                width: 90,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(13),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      risk,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'RISK LEVEL',
-                      style: TextStyle(
-                        color: muted2,
-                        fontSize: 7,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              const Icon(
-                Icons.chevron_right_rounded,
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              dateTime,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
                 color: muted2,
-                size: 20,
+                fontSize: 9,
               ),
-            ],
+            ),
+          ],
+        ),
+      );
+
+      final riskBadge = Container(
+        constraints: const BoxConstraints(minWidth: 76),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 9,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: color.withAlpha(13),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: color.withAlpha(35)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              risk,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: color,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 3),
+            const Text(
+              'RISK LEVEL',
+              style: TextStyle(
+                color: muted2,
+                fontSize: 7,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      final visibilityInfo = _miniMetric(
+        Icons.visibility_rounded,
+        '${visibility.toStringAsFixed(2)} km',
+        'VISIBILITY',
+      );
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showDetails(item),
+          borderRadius: BorderRadius.circular(15),
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(isMobile ? 12 : 15),
+            decoration: BoxDecoration(
+              color: panel,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: border),
+            ),
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          locationIcon,
+                          const SizedBox(width: 10),
+                          cityInfo,
+                          const SizedBox(width: 8),
+                          riskBadge,
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Container(height: 1, color: border),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: visibilityInfo),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.open_in_new_rounded,
+                            color: muted2,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      locationIcon,
+                      const SizedBox(width: 12),
+                      cityInfo,
+                      const SizedBox(width: 16),
+                      visibilityInfo,
+                      const SizedBox(width: 18),
+                      Container(
+                        width: 1,
+                        height: 35,
+                        color: border,
+                      ),
+                      const SizedBox(width: 18),
+                      riskBadge,
+                      const SizedBox(width: 10),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: muted2,
+                        size: 20,
+                      ),
+                    ],
+                  ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
   Widget _miniMetric(
     IconData icon,
@@ -2026,7 +2068,9 @@ class _MotorwayNetworkScreenState extends State<MotorwayNetworkScreen>
       children: [
         _buildMobileHeader(),
         Expanded(
-          child: SingleChildScrollView(
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -2045,75 +2089,95 @@ class _MotorwayNetworkScreenState extends State<MotorwayNetworkScreen>
               ],
             ),
           ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildMobileHeader() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        12,
-        8,
-        12,
-        0,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 11,
-      ),
-      decoration: BoxDecoration(
-        color: panel,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () =>
-                Navigator.pop(context),
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: white,
-              size: 20,
-            ),
+
+Widget _buildMobileHeader() {
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    padding: const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 8,
+    ),
+    decoration: BoxDecoration(
+      color: panel,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: border),
+    ),
+    child: Row(
+      children: [
+        IconButton(
+          tooltip: 'Back to User Dashboard',
+          constraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
           ),
-          const SizedBox(width: 3),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MOTORWAY NETWORK',
-                  style: TextStyle(
-                    color: white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
+          padding: EdgeInsets.zero,
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: cyan,
+            size: 21,
+          ),
+        ),
+        const SizedBox(width: 6),
+        const Icon(
+          Icons.alt_route_rounded,
+          color: cyan,
+          size: 20,
+        ),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'MOTORWAY NETWORK',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
                 ),
-                Text(
-                  'Punjab Risk Monitoring',
-                  style: TextStyle(
-                    color: muted2,
-                    fontSize: 8,
-                  ),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Punjab Risk Monitoring',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: muted2,
+                  fontSize: 9,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: safe,
-              shape: BoxShape.circle,
-            ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: safe,
+            shape: BoxShape.circle,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(width: 5),
+      ],
+    ),
+  );
+}
 
   // ============================================================
   // EMPTY
