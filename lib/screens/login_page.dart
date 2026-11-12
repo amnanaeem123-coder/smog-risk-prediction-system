@@ -682,7 +682,7 @@ Future<void> handleSetPassword() async {
 
       if (selectedRole == 'NHMP Login') {
 
-        if (role != 'nhmp' && role != 'admin') {
+        if (role != 'nhmp') {
 
           await FirebaseAuth.instance.signOut();
 
@@ -1100,33 +1100,29 @@ await GoogleSignIn.instance.initialize(
           ),
 
           padding: const EdgeInsets.symmetric(
-
-            vertical: 10,
-
-            horizontal: 3,
-
+            vertical: 12,
+            horizontal: 4,
           ),
-
           decoration: BoxDecoration(
-
             color: isSelected
-
                 ? cyan
-
-                : Colors.white.withAlpha(10),
-
-            borderRadius: BorderRadius.circular(12),
-
+                : Colors.white.withAlpha(12),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-
               color: isSelected
-
                   ? cyan
-
-                  : Colors.white.withAlpha(25),
-
+                  : Colors.white.withAlpha(35),
+              width: isSelected ? 1.3 : 1,
             ),
-
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: cyan.withAlpha(35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : [],
           ),
 
           child: Column(
@@ -1383,10 +1379,10 @@ await GoogleSignIn.instance.initialize(
 
 
 final double cardWidth =
-    screenWidth < 520 ? screenWidth - 40 : 470;
+    screenWidth < 520 ? screenWidth - 32 : 500;
 
 final double cardPadding =
-    screenWidth < 500 ? 20 : 32;
+    screenWidth < 500 ? 20 : 34;
 
 
     return Container(
@@ -1402,31 +1398,25 @@ final double cardPadding =
       padding: EdgeInsets.all(cardPadding),
 
       decoration: BoxDecoration(
-
-        color: card.withAlpha(248),
-
-        borderRadius: BorderRadius.circular(24),
-
+        color: card.withAlpha(250),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(
-
-          color: Colors.white.withAlpha(25),
-
+          color: cyan.withAlpha(48),
+          width: 1.1,
         ),
-
         boxShadow: [
-
           BoxShadow(
-
-            color: Colors.black.withAlpha(120),
-
-            blurRadius: 35,
-
-            offset: const Offset(0, 15),
-
+            color: Colors.black.withAlpha(125),
+            blurRadius: 42,
+            spreadRadius: 2,
+            offset: const Offset(0, 18),
           ),
-
+          BoxShadow(
+            color: cyan.withAlpha(12),
+            blurRadius: 28,
+            spreadRadius: 1,
+          ),
         ],
-
       ),
 
       child: Column(
@@ -1441,17 +1431,31 @@ final double cardPadding =
 
           // ======================================================
 
-          const Icon(
-
-            Icons.cloud_queue_rounded,
-
-            color: cyan,
-
-            size: 43,
-
+          Container(
+            width: 66,
+            height: 66,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: cyan.withAlpha(22),
+              border: Border.all(
+                color: cyan.withAlpha(90),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: cyan.withAlpha(20),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.cloud_queue_rounded,
+              color: cyan,
+              size: 37,
+            ),
           ),
-
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
           // ======================================================
 
@@ -1469,11 +1473,9 @@ final double cardPadding =
 
               color: Colors.white,
 
-              fontSize: 25,
-
+              fontSize: 26,
               fontWeight: FontWeight.w900,
-
-              letterSpacing: 3,
+              letterSpacing: 3.2,
 
             ),
 
@@ -1501,17 +1503,22 @@ final double cardPadding =
 
           ),
 
-          const SizedBox(height: 15),
-
-          Divider(
-
-            color: Colors.white.withAlpha(25),
-
-            height: 1,
-
-          ),
-
           const SizedBox(height: 18),
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  cyan.withAlpha(100),
+                  Colors.white.withAlpha(35),
+                  cyan.withAlpha(100),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
 
           // ======================================================
 
@@ -1529,9 +1536,9 @@ final double cardPadding =
 
               color: Colors.white,
 
-              fontSize: 27,
-
+              fontSize: 29,
               fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
 
             ),
 
@@ -1557,7 +1564,7 @@ final double cardPadding =
 
           ),
 
-          const SizedBox(height: 25),
+          const SizedBox(height: 27),
 
           // ======================================================
 
@@ -1876,9 +1883,7 @@ final double cardPadding =
           // ======================================================
 
           SizedBox(
-
-            height: 52,
-
+            height: 54,
             child: ElevatedButton(
 
               onPressed: isLoading
@@ -1895,11 +1900,10 @@ final double cardPadding =
 
                     blue.withAlpha(100),
 
-                elevation: 0,
-
+                elevation: 4,
+                shadowColor: blue.withAlpha(90),
                 shape: RoundedRectangleBorder(
-
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(14),
 
                 ),
 
@@ -1946,76 +1950,13 @@ final double cardPadding =
           ),
 
           if (selectedRole == 'User Login') ...[
-          const SizedBox(height: 20),
+           // GOOGLE SIGN-IN BUTTON
+           const SizedBox(height: 16),
 
-TextButton(
-
-  onPressed: isLoading ? null : handleSetPassword,
-
-  child: const Text('Set Password'),
-
-),
-
-          // GOOGLE SIGN-IN BUTTON
-
-          const SizedBox(height: 16),
-
-          Row(
-
-            children: [
-
-              Expanded(
-
-                child: Divider(
-
-                  color: Colors.white.withAlpha(45),
-
-                ),
-
-              ),
-
-              const Padding(
-
-                padding: EdgeInsets.symmetric(horizontal: 12),
-
-                child: Text(
-
-                  'OR',
-
-                  style: TextStyle(
-
-                    color: Colors.white70,
-
-                    fontSize: 11,
-
-                  ),
-
-                ),
-
-              ),
-
-              Expanded(
-
-                child: Divider(
-
-                  color: Colors.white.withAlpha(45),
-
-                ),
-
-              ),
-
-            ],
-
-          ),
-
-          const SizedBox(height: 16),
 
           SizedBox(
-
-            height: 50,
-
+            height: 52,
             width: double.infinity,
-
             child: OutlinedButton.icon(
 
               onPressed: isLoading ? null : handleGoogleSignIn,
@@ -2048,15 +1989,13 @@ TextButton(
 
               style: OutlinedButton.styleFrom(
 
+                backgroundColor: Colors.white.withAlpha(8),
                 side: BorderSide(
-
-                  color: Colors.white.withAlpha(70),
-
+                  color: cyan.withAlpha(75),
+                  width: 1.1,
                 ),
-
                 shape: RoundedRectangleBorder(
-
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(14),
 
                 ),
 
