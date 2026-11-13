@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
 
 import '../widgets/aqi_chart.dart';
 import '../widgets/alert_table.dart';
@@ -26,6 +31,89 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedTab = 0;
+
+  // ============================================================
+  // LIVE DATA (same as User Dashboard)
+  // ============================================================
+
+  static const String _liveUrl = 'http://localhost:5000/latest';
+  List<Map<String, dynamic>> _liveData = [];
+  String _dataSource = 'Offline file';
+  Timer? _autoRefreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLiveData();
+
+    // Ask the live server again every 5 minutes.
+    _autoRefreshTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _loadLiveData(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadLiveData() async {
+    List<dynamic> list = [];
+    String source = 'Offline file';
+
+    // 1. Try the live server first.
+    try {
+      final response = await http
+          .get(Uri.parse(_liveUrl))
+          .timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List && decoded.isNotEmpty) {
+          list = decoded;
+          source = 'Live server';
+        }
+      }
+    } catch (_) {
+      // Server is off. Use the saved file below.
+    }
+
+    // 2. If the server did not answer, use the saved file.
+    if (list.isEmpty) {
+      try {
+        final raw = await rootBundle.loadString(
+          'assets/data/latest_risk.json',
+        );
+        final decoded = jsonDecode(raw);
+        list = decoded is List ? decoded : [];
+      } catch (_) {
+        list = [];
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _liveData = list
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      _dataSource = source;
+    });
+  }
+
+  bool get _isLive => _dataSource == 'Live server';
+
+  // Cities with HIGH or CRITICAL risk right now.
+  int get _liveAlertCount {
+    return _liveData.where((item) {
+      final risk =
+          (item['risk_level'] ?? '').toString().toUpperCase();
+      return risk == 'HIGH' || risk == 'CRITICAL';
+    }).length;
+  }
 
   // ============================================================
   // COLORS
@@ -1221,15 +1309,15 @@ if (isMobile) ...[
       ),
       _DashboardCardData(
         title: "Predictions",
-        value: "560",
-        status: "Today",
+        value: "${_liveData.length}",
+        status: _isLive ? "Live" : "Offline",
         icon: Icons.analytics_rounded,
         color: cyanColor,
         page: const ReportsScreen(),
       ),
       _DashboardCardData(
         title: "Alerts",
-        value: "18",
+        value: "$_liveAlertCount",
         status: "Active",
         icon: Icons.warning_rounded,
         color: redColor,
@@ -1479,13 +1567,13 @@ if (isMobile) ...[
       _liveItem(
         Icons.psychology_rounded,
         "AI Prediction Engine",
-        "Running",
-        blueColor,
+        "Source: $_dataSource",
+        _isLive ? Colors.greenAccent : Colors.orangeAccent,
       ),
       _liveItem(
         Icons.notifications_active_rounded,
         "Alert Service",
-        "18 Active Alerts",
+        "$_liveAlertCount Active Alerts",
         Colors.orangeAccent,
       ),
     ];

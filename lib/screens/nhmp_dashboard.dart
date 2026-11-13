@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
 import 'login_page.dart';
 
 import 'user_dashboard.dart';
@@ -31,6 +33,11 @@ class _NHMPDashboardState extends State<NHMPDashboard>
 
   int selectedMenu = 0;
   DateTime? lastUpdated;
+
+  // LIVE SERVER (same as User Dashboard)
+  static const String _liveUrl = 'http://localhost:5000/latest';
+  String _dataSource = 'Offline file';
+  Timer? _autoRefreshTimer;
 
   // ============================================================
   // SCROLL / SECTION KEYS
@@ -101,10 +108,17 @@ class _NHMPDashboardState extends State<NHMPDashboard>
     )..repeat(reverse: true);
 
     loadRiskData();
+
+    // Ask the live server again every 5 minutes.
+    _autoRefreshTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => loadRiskData(),
+    );
   }
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _scrollController.dispose();
     _pageController.dispose();
     _chartController.dispose();
@@ -118,45 +132,70 @@ class _NHMPDashboardState extends State<NHMPDashboard>
   // ============================================================
 
   Future<void> loadRiskData() async {
+    // Full loading screen only the first time.
+    // Later refreshes update the data quietly.
+    final firstLoad = riskData.isEmpty;
+
+    if (mounted && firstLoad) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    }
+
+    _refreshController.forward(from: 0);
+
+    List<dynamic> list = [];
+    String source = 'Offline file';
+
+    // 1. Try the live server first.
     try {
-      if (mounted) {
-        setState(() {
-          isLoading = true;
-          errorMessage = null;
+      final response = await http
+          .get(Uri.parse(_liveUrl))
+          .timeout(const Duration(seconds: 4));
 
-        });
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List && decoded.isNotEmpty) {
+          list = decoded;
+          source = 'Live server';
+        }
       }
+    } catch (_) {
+      // Server is off. Use the saved file below.
+    }
 
-      _refreshController.forward(from: 0);
+    // 2. If the server did not answer, use the saved file.
+    if (list.isEmpty) {
+      try {
+        final jsonString = await rootBundle.loadString(
+          'assets/data/latest_risk.json',
+        );
+        final decoded = json.decode(jsonString);
+        list = decoded is List ? decoded : [];
+      } catch (_) {
+        list = [];
+      }
+    }
 
-      final jsonString = await rootBundle.loadString(
-        'assets/data/latest_risk.json',
-      );
+    if (!mounted) return;
 
-      final decodedData = json.decode(jsonString);
+    if (list.isNotEmpty) {
+      setState(() {
+        riskData = list;
+        _dataSource = source;
+        isLoading = false;
+        errorMessage = null;
+        lastUpdated = DateTime.now();
+      });
 
-      if (!mounted) return;
-
-      if (decodedData is List) {
-        setState(() {
-          riskData = decodedData;
-          isLoading = false;
-          lastUpdated = DateTime.now();
-        });
-
+      if (firstLoad) {
         _pageController.forward(from: 0);
         _chartController.forward(from: 0);
-      } else {
-        setState(() {
-          riskData = [];
-          isLoading = false;
-          errorMessage = "Invalid risk data format.";
-        });
       }
-    } catch (e) {
-      if (!mounted) return;
-
+    } else if (firstLoad) {
       setState(() {
+        riskData = [];
         isLoading = false;
         errorMessage = "Unable to load risk data.";
       });
@@ -1031,12 +1070,12 @@ animatedSection(
             },
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   "SYSTEM ONLINE",
                   style: TextStyle(
                     color: Colors.white,
@@ -1044,11 +1083,13 @@ animatedSection(
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 3),
+                const SizedBox(height: 3),
                 Text(
-                  "Monitoring active",
+                  "Source: $_dataSource",
                   style: TextStyle(
-                    color: Colors.white38,
+                    color: _dataSource == 'Live server'
+                        ? safeColor
+                        : moderateColor,
                     fontSize: 8,
                   ),
                 ),
@@ -4013,6 +4054,17 @@ Widget buildMobileStatus() {
                 style: const TextStyle(
                   color: Colors.white60,
                   fontSize: 9,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Source: $_dataSource',
+                style: TextStyle(
+                  color: _dataSource == 'Live server'
+                      ? safeColor
+                      : moderateColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
