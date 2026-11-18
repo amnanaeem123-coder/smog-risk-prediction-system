@@ -71,11 +71,15 @@ class _UserDashboardState extends State<UserDashboard>
   bool _refreshing = false;
 
   // LIVE DATA: address of the small Python (Flask) server.
-  static const String _liveUrl = 'http://localhost:5000/latest';
+static const String _liveUrl = 'https://smog-prediction-backend.enzonic.dev/latest';
 
   // LIVE DATA: shows where the current data came from.
   String _dataSource = 'Offline file';
+// CURRENT LIVE CONDITIONS
+static const String _currentUrl = 'https://smog-prediction-backend.enzonic.dev/current';
 
+List<Map<String, dynamic>> _currentConditions = [];
+String _currentDataSource = 'Waiting for live data';
   // LIVE DATA: asks the server for new data every 5 minutes.
   Timer? _autoRefreshTimer;
 
@@ -132,59 +136,103 @@ class _UserDashboardState extends State<UserDashboard>
   // LIVE DATA: try the Python server first.
   // If the server is not running, use the bundled JSON file instead,
   // so the app never shows an empty screen during a demo.
-  Future<void> _loadData() async {
-    final firstLoad = _locations.isEmpty;
 
-    List<dynamic> list = [];
-    String source = 'Offline file';
+Future<void> _loadData() async {
+  final firstLoad = _locations.isEmpty;
 
+  // 1. FUTURE AI PREDICTIONS
+  List<dynamic> list = [];
+  String source = 'Offline file';
+
+  try {
+    final response = await http
+        .get(Uri.parse(_liveUrl))
+        .timeout(const Duration(seconds: 4));
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is List && decoded.isNotEmpty) {
+        list = decoded;
+        source = 'Live server';
+      }
+    }
+  } catch (_) {
+    // Server not reachable. Use the saved prediction file.
+  }
+
+  if (list.isEmpty) {
     try {
-      final response = await http
-          .get(Uri.parse(_liveUrl))
-          .timeout(const Duration(seconds: 4));
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        if (decoded is List && decoded.isNotEmpty) {
-          list = decoded;
-          source = 'Live server';
-        }
-      }
+      final raw = await rootBundle.loadString(
+        'assets/data/latest_risk.json',
+      );
+      final decoded = jsonDecode(raw);
+      list = decoded is List ? decoded : [];
     } catch (_) {
-      // Server not reachable. Fall back to the bundled file below.
-    }
-
-    if (list.isEmpty) {
-      try {
-        final raw =
-            await rootBundle.loadString('assets/data/latest_risk.json');
-        final decoded = jsonDecode(raw);
-        list = decoded is List ? decoded : [];
-      } catch (_) {
-        list = [];
-      }
-    }
-
-    final data = list
-        .map<Map<String, dynamic>>(
-          (e) => Map<String, dynamic>.from(e as Map),
-        )
-        .toList();
-
-    if (!mounted) return;
-
-    setState(() {
-      _locations = data;
-      _dataSource = source;
-      _loading = false;
-    });
-
-    // Play the entry animation only on the first load,
-    // not on every auto refresh.
-    if (firstLoad) {
-      _entryController.forward(from: 0);
+      list = [];
     }
   }
+
+  final data = list
+      .map<Map<String, dynamic>>(
+        (e) => Map<String, dynamic>.from(e as Map),
+      )
+      .toList();
+
+  // 2. CURRENT LIVE WEATHER AND AIR QUALITY
+  List<Map<String, dynamic>> currentData = [];
+  String currentSource = 'Unavailable';
+
+  try {
+    final currentResponse = await http
+        .get(Uri.parse(_currentUrl))
+        .timeout(const Duration(seconds: 15));
+
+    if (currentResponse.statusCode == 200) {
+      final decodedCurrent = jsonDecode(currentResponse.body);
+
+      if (decodedCurrent is Map &&
+          decodedCurrent['data'] is List) {
+        currentData = (decodedCurrent['data'] as List)
+            .whereType<Map>()
+            .map(
+              (e) => Map<String, dynamic>.from(e),
+            )
+            .toList();
+
+        if (currentData.isNotEmpty) {
+          currentSource =
+              decodedCurrent['source']?.toString() ?? 'Live API';
+        }
+      }
+    }
+  } catch (_) {
+    // Current live data unavailable. Keep previous readings.
+  }
+
+  if (!mounted) return;
+
+  setState(() {
+    // Future AI predictions
+    _locations = data;
+    _dataSource = source;
+
+    // Current weather and air quality
+    if (currentData.isNotEmpty) {
+      _currentConditions = currentData;
+      _currentDataSource = currentSource;
+    }
+
+    _loading = false;
+  });
+
+  // Play entry animation only on first load.
+  if (firstLoad) {
+    _entryController.forward(from: 0);
+  }
+}
+
+
 
   Future<void> _refreshData() async {
     if (_refreshing) return;
@@ -1250,22 +1298,47 @@ icon: const Icon(
                 .25,
                 curve: Curves.easeOutCubic,
               ),
-              child: _buildHeroSection(),
-            ),
+
+child: _buildHeroSection(),
+),
+
+const SizedBox(height: 16),
+// CURRENT LIVE WEATHER AND AIR QUALITY
+_AnimatedSection(
+  animation: _entryController,
+  interval: const Interval(
+    .08,
+    .36,
+    curve: Curves.easeOutCubic,
+  ),
+  child: _buildCurrentConditionsPanel(),
+),
+
+const SizedBox(height: 16),
+
+_AnimatedSection(
+  animation: _entryController,
+  interval: const Interval(
+    .10,
+    .38,
+    curve: Curves.easeOutCubic,
+  ),
+  child: _buildStatsRow(),
+),
+
 
             const SizedBox(height: 16),
-
             _AnimatedSection(
-              animation: _entryController,
-              interval: const Interval(
-                .10,
-                .38,
-                curve: Curves.easeOutCubic,
-              ),
-              child: _buildStatsRow(),
-            ),
+  animation: _entryController,
+  interval: const Interval(
+    .15,
+    .45,
+    curve: Curves.easeOutCubic,
+  ),
+  child: _buildFuturePredictionsPanel(),
+),
 
-            const SizedBox(height: 16),
+const SizedBox(height: 16),
 
             _AnimatedSection(
               animation: _entryController,
@@ -1317,6 +1390,635 @@ icon: const Icon(
       },
     );
   }
+
+Widget _buildFuturePredictionsPanel() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          panel2,
+          panel,
+          const Color(0xFF0A1D30),
+        ],
+      ),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: cyan.withAlpha(55)),
+      boxShadow: [
+        BoxShadow(
+          color: cyan.withAlpha(12),
+          blurRadius: 22,
+          spreadRadius: 1,
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cyan.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: cyan,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AI FUTURE PREDICTIONS',
+                    style: TextStyle(
+                      color: white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .6,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'AI-based motorway risk forecast',
+                    style: TextStyle(
+                      color: muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.insights_rounded,
+              color: cyan,
+              size: 23,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 18),
+
+        if (_locations.isEmpty)
+          const Center(
+            child: Text(
+              'Future predictions are not available.',
+              style: TextStyle(color: muted),
+            ),
+          )
+        else
+          ..._locations.map((item) {
+            final city = item['city']?.toString() ?? 'Unknown';
+            final risk = item['risk_level']?.toString() ?? 'UNKNOWN';
+            final visibility =
+                double.tryParse(
+                  item['visibility_km']?.toString() ?? '',
+                )?.toStringAsFixed(2) ?? '--';
+
+            final dateTime =
+                item['datetime']?.toString() ?? '--';
+
+            final recommendation =
+                item['recommendation']?.toString() ?? '';
+
+            final riskColor = _riskColor(risk);
+
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: navy2,
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(
+                  color: riskColor.withAlpha(65),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: cyan.withAlpha(18),
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: const Icon(
+                          Icons.location_city_rounded,
+                          color: cyan,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Text(
+                          city,
+                          style: const TextStyle(
+                            color: white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: riskColor.withAlpha(22),
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: riskColor.withAlpha(75),
+                          ),
+                        ),
+                        child: Text(
+                          risk,
+                          style: TextStyle(
+                            color: riskColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: cyan.withAlpha(10),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: cyan.withAlpha(30),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.visibility_rounded,
+                          color: cyan,
+                          size: 25,
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'PREDICTED VISIBILITY',
+                            style: TextStyle(
+                              color: muted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '$visibility km',
+                          style: const TextStyle(
+                            color: cyan,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 13),
+
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.schedule_rounded,
+                        color: muted,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          'Prediction Time: $dateTime',
+                          style: const TextStyle(
+                            color: muted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (recommendation.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: riskColor.withAlpha(12),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.shield_rounded,
+                            color: riskColor,
+                            size: 17,
+                          ),
+                          const SizedBox(width: 9),
+                          Expanded(
+                            child: Text(
+                              recommendation,
+                              style: const TextStyle(
+                                color: white,
+                                fontSize: 11,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+      ],
+    ),
+  );
+}
+
+
+Widget _buildCurrentConditionsPanel() {
+  double readNumber(dynamic value) {
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String formatNumber(dynamic value) {
+    return readNumber(value).toStringAsFixed(1);
+  }
+
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          panel2,
+          panel,
+          const Color(0xFF0A1D30),
+        ],
+      ),
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: cyan.withAlpha(55)),
+      boxShadow: [
+        BoxShadow(
+          color: cyan.withAlpha(10),
+          blurRadius: 20,
+          spreadRadius: 1,
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cyan.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.wb_cloudy_rounded,
+                color: cyan,
+                size: 23,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CURRENT LIVE CONDITIONS',
+                    style: TextStyle(
+                      color: white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .5,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Real-time weather and air quality',
+                    style: TextStyle(
+                      color: muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 9,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: safe.withAlpha(18),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: safe.withAlpha(65)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.circle, color: safe, size: 7),
+                  SizedBox(width: 5),
+                  Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color: safe,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 7),
+
+        Text(
+          '$_currentDataSource',
+          style: const TextStyle(
+            color: muted,
+            fontSize: 10,
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
+        if (_currentConditions.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: Text(
+                'Current readings are not available yet.',
+                style: TextStyle(color: muted),
+              ),
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = constraints.maxWidth < 520
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 12) / 2;
+
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: _currentConditions.map<Widget>((item) {
+                  final city =
+                      item['city']?.toString() ?? 'Unknown';
+
+                  final risk =
+                      item['risk_level']?.toString() ?? 'SAFE';
+
+                  final riskColor = _riskColor(risk);
+
+                  final aqi = item['aqi']?.toString() ?? '--';
+
+                  final aqiLabel =
+                      item['aqi_label']?.toString() ?? 'Unknown';
+
+                  return Container(
+                    width: cardWidth,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: navy2,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: riskColor.withAlpha(65),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: riskColor.withAlpha(8),
+                          blurRadius: 14,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: cyan.withAlpha(18),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              child: const Icon(
+                                Icons.location_city_rounded,
+                                color: cyan,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                city,
+                                style: const TextStyle(
+                                  color: white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 11,
+                          ),
+                          decoration: BoxDecoration(
+                            color: riskColor.withAlpha(16),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: riskColor.withAlpha(65),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'MOTORWAY RISK',
+                                      style: TextStyle(
+                                        color: muted,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: .5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      risk,
+                                      style: TextStyle(
+                                        color: riskColor,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.shield_rounded,
+                                color: riskColor,
+                                size: 25,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.air_rounded,
+                              color: cyan,
+                              size: 19,
+                            ),
+                            const SizedBox(width: 7),
+                            const Text(
+                              'AIR QUALITY',
+                              style: TextStyle(
+                                color: muted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'AQI $aqi',
+                              style: const TextStyle(
+                                color: cyan,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 5),
+
+                        Text(
+                          aqiLabel,
+                          style: const TextStyle(
+                            color: white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+
+                        const SizedBox(height: 13),
+
+                        Container(
+                          height: 1,
+                          color: border,
+                        ),
+
+                        const SizedBox(height: 13),
+
+                        _currentReadingRow(
+                          'Visibility',
+                          '${formatNumber(item['visibility_km'])} km',
+                        ),
+                        _currentReadingRow(
+                          'PM2.5',
+                          '${formatNumber(item['pm2_5'])} µg/m³',
+                        ),
+                        _currentReadingRow(
+                          'PM10',
+                          '${formatNumber(item['pm10'])} µg/m³',
+                        ),
+                        _currentReadingRow(
+                          'Temperature',
+                          '${formatNumber(item['temperature_c'])} °C',
+                        ),
+                        _currentReadingRow(
+                          'Humidity',
+                          '${formatNumber(item['humidity'])} %',
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+      ],
+    ),
+  );
+}
+
+Widget _currentReadingRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 11),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: white,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildHeroSection() {
     final highest = _highestRiskLocation;
@@ -1855,8 +2557,9 @@ Widget _buildStatCard(_StatData stat) {
         .toList();
 
     return _panelContainer(
-      title: 'VISIBILITY ANALYSIS',
-      subtitle: 'Current visibility (km) across monitored locations',
+
+     title: 'FUTURE VISIBILITY PREDICTION',
+subtitle: 'AI-predicted visibility (km) across monitored locations',
       icon: Icons.bar_chart_rounded,
       accent: cyan,
       child: Column(
@@ -1917,8 +2620,8 @@ Widget _buildStatCard(_StatData stat) {
     };
 
     return _panelContainer(
-      title: 'RISK DISTRIBUTION',
-      subtitle: 'Current status by risk category',
+      title: 'PREDICTED RISK DISTRIBUTION',
+subtitle: 'AI-predicted risk categories across locations',
       icon: Icons.donut_large_rounded,
       accent: teal,
       child: Column(
