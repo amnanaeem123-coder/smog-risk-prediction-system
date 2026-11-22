@@ -71,12 +71,12 @@ class _UserDashboardState extends State<UserDashboard>
   bool _refreshing = false;
 
   // LIVE DATA: address of the small Python (Flask) server.
-static const String _liveUrl = 'https://smog-prediction-backend.enzonic.dev/latest';
+static const String _liveUrl = 'http://localhost:5000/latest';
 
   // LIVE DATA: shows where the current data came from.
   String _dataSource = 'Offline file';
 // CURRENT LIVE CONDITIONS
-static const String _currentUrl = 'https://smog-prediction-backend.enzonic.dev/current';
+static const String _currentUrl = 'http://localhost:5000/current';
 
 List<Map<String, dynamic>> _currentConditions = [];
 String _currentDataSource = 'Waiting for live data';

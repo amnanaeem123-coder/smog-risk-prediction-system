@@ -12,7 +12,9 @@ DATA_FILE = os.path.join(
     BASE_DIR, "assets", "data", "latest_risk.json"
 )
 
-BACKEND_DIR = r"C:\flutter_projects\FYP-APP\smog-prediction-backend-main"
+BACKEND_DIR = r"C:\Users\Admin\fyp project"
+if not os.path.exists(os.path.join(BACKEND_DIR, "api_key.txt")):
+    BACKEND_DIR = r"C:\flutter_projects\FYP-APP\smog-prediction-backend-main"
 API_KEY_FILE = os.path.join(BACKEND_DIR, "api_key.txt")
 
 CITIES = {
