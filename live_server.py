@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 from datetime import datetime
 
@@ -8,10 +8,18 @@ from flask_cors import CORS
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Saved predictions on this laptop (used only if the cloud cannot be reached)
 DATA_FILE = os.path.join(
     BASE_DIR, "assets", "data", "latest_risk.json"
 )
 
+# Newest predictions. GitHub Actions updates this file every hour in the cloud.
+CLOUD_URL = (
+    "https://raw.githubusercontent.com/amnanaeem123-coder/"
+    "smog-prediction-backend/main/latest_risk.json"
+)
+
+# Looks for the API key on Amna's laptop first, then on Ayesha's laptop
 BACKEND_DIR = r"C:\Users\Admin\fyp project"
 if not os.path.exists(os.path.join(BACKEND_DIR, "api_key.txt")):
     BACKEND_DIR = r"C:\flutter_projects\FYP-APP\smog-prediction-backend-main"
@@ -56,17 +64,39 @@ app = Flask(__name__)
 CORS(app)
 
 
-@app.route("/latest")
-def latest():
+def read_local_file():
+    """Saved predictions on this laptop."""
     if not os.path.exists(DATA_FILE):
-        return jsonify({"error": "Prediction file not found"}), 404
-
+        return None
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            return json.load(f)
     except json.JSONDecodeError:
-        return jsonify({"error": "Prediction file is being updated"}), 503
+        return None
 
+
+@app.route("/latest")
+def latest():
+    # 1. Newest predictions from the cloud (updated every hour)
+    try:
+        response = requests.get(CLOUD_URL, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        if isinstance(data, list) and data:
+            # Keep a copy on this laptop, so the app still works without internet
+            try:
+                with open(DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+            except OSError:
+                pass
+            return jsonify(data)
+    except Exception:
+        pass  # No internet or GitHub not reachable. Use the saved file below.
+
+    # 2. Saved predictions on this laptop
+    data = read_local_file()
+    if data is None:
+        return jsonify({"error": "Prediction file not found"}), 404
     return jsonify(data)
 
 
@@ -163,6 +193,6 @@ def health():
 
 if __name__ == "__main__":
     print("Serving future predictions and current conditions")
-    print("Future predictions: http://localhost:5000/latest")
+    print("Future predictions: http://localhost:5000/latest  (from the cloud, laptop file as backup)")
     print("Current conditions: http://localhost:5000/current")
     app.run(host="0.0.0.0", port=5000, debug=False)
