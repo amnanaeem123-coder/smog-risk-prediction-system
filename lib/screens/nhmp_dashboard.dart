@@ -35,7 +35,7 @@ class _NHMPDashboardState extends State<NHMPDashboard>
   DateTime? lastUpdated;
 
   // LIVE SERVER (same as User Dashboard)
-  static const String _liveUrl = 'http://localhost:5000/latest';
+  static const String _liveUrl = 'https://raw.githubusercontent.com/amnanaeem123-coder/smog-prediction-backend/main/latest_risk.json';
   String _dataSource = 'Offline file';
   Timer? _autoRefreshTimer;
 

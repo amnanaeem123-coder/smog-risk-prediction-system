@@ -36,7 +36,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   // LIVE DATA (same as User Dashboard)
   // ============================================================
 
-  static const String _liveUrl = 'http://localhost:5000/latest';
+  static const String _liveUrl = 'https://raw.githubusercontent.com/amnanaeem123-coder/smog-prediction-backend/main/latest_risk.json';
   List<Map<String, dynamic>> _liveData = [];
   String _dataSource = 'Offline file';
   Timer? _autoRefreshTimer;
